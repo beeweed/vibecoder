@@ -13,7 +13,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'ai' | 'explorer' | 'editor'>('ai');
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
+    <div className="h-screen h-[100dvh] flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden safe-area-pt">
       <Header />
       
       {/* Desktop Layout */}

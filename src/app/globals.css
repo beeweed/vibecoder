@@ -66,8 +66,20 @@ body {
   overflow: hidden;
 }
 
+/* Safe area insets for mobile browsers */
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Fallback padding for browsers that don't support env() */
+@supports not (padding-top: env(safe-area-inset-top)) {
+  .safe-area-pt {
+    padding-top: 0px;
+  }
 }
 
 ::-webkit-scrollbar {
