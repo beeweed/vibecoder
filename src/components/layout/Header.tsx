@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -16,6 +16,7 @@ export function Header() {
     groqApiKey,
     cohereApiKey,
     chutesApiKey,
+    fireworksApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -30,6 +31,7 @@ export function Header() {
     if (provider === 'groq') return groqApiKey;
     if (provider === 'cohere') return cohereApiKey;
     if (provider === 'chutes') return chutesApiKey;
+    if (provider === 'fireworks') return fireworksApiKey;
     return apiKey;
   };
   
@@ -54,6 +56,7 @@ export function Header() {
       if (provider === 'groq') endpoint = '/api/models/groq';
       else if (provider === 'cohere') endpoint = '/api/models/cohere';
       else if (provider === 'chutes') endpoint = '/api/models/chutes';
+      else if (provider === 'fireworks') endpoint = '/api/models/fireworks';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
@@ -130,11 +133,13 @@ export function Header() {
             <MessageSquare className="w-3.5 h-3.5 text-red-400" />
           ) : provider === 'chutes' ? (
             <Rocket className="w-3.5 h-3.5 text-cyan-400" />
+          ) : provider === 'fireworks' ? (
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : 'OpenRouter'}
           </span>
         </div>
 

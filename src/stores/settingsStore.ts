@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { OpenRouterModel } from '@/types/openrouter';
 
-export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes';
+export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks';
 
 interface SettingsStore {
   provider: Provider;
@@ -10,6 +10,7 @@ interface SettingsStore {
   groqApiKey: string | null;
   cohereApiKey: string | null;
   chutesApiKey: string | null;
+  fireworksApiKey: string | null;
   selectedModel: string;
   temperature: number;
   maxTokens: number;
@@ -22,6 +23,7 @@ interface SettingsStore {
   setGroqApiKey: (key: string | null) => void;
   setCohereApiKey: (key: string | null) => void;
   setChutesApiKey: (key: string | null) => void;
+  setFireworksApiKey: (key: string | null) => void;
   setSelectedModel: (modelId: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
@@ -56,6 +58,8 @@ const getDefaultModel = (provider: Provider): string => {
       return 'command-a-03-2025';
     case 'chutes':
       return 'chutesai/Mistral-Small-3.1-24B-Instruct-2503';
+    case 'fireworks':
+      return 'accounts/fireworks/models/llama-v3p1-70b-instruct';
     default:
       return 'anthropic/claude-sonnet-4';
   }
@@ -69,6 +73,7 @@ export const useSettingsStore = create<SettingsStore>()(
       groqApiKey: null,
       cohereApiKey: null,
       chutesApiKey: null,
+      fireworksApiKey: null,
       selectedModel: 'anthropic/claude-sonnet-4',
       temperature: 0.7,
       maxTokens: 8192,
@@ -83,6 +88,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setGroqApiKey: (key: string | null) => set({ groqApiKey: key }),
       setCohereApiKey: (key: string | null) => set({ cohereApiKey: key }),
       setChutesApiKey: (key: string | null) => set({ chutesApiKey: key }),
+      setFireworksApiKey: (key: string | null) => set({ fireworksApiKey: key }),
       setSelectedModel: (modelId: string) => set({ selectedModel: modelId }),
       setTemperature: (temp: number) => set({ temperature: temp }),
       setMaxTokens: (tokens: number) => set({ maxTokens: tokens }),
@@ -97,6 +103,7 @@ export const useSettingsStore = create<SettingsStore>()(
           groqApiKey: null,
           cohereApiKey: null,
           chutesApiKey: null,
+          fireworksApiKey: null,
           selectedModel: 'anthropic/claude-sonnet-4',
           temperature: 0.7,
           maxTokens: 8192,
@@ -110,6 +117,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state.provider === 'groq') activeKey = state.groqApiKey;
         else if (state.provider === 'cohere') activeKey = state.cohereApiKey;
         else if (state.provider === 'chutes') activeKey = state.chutesApiKey;
+        else if (state.provider === 'fireworks') activeKey = state.fireworksApiKey;
         else activeKey = state.apiKey;
         return !!activeKey && !!state.selectedModel;
       },
@@ -119,6 +127,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state.provider === 'groq') return state.groqApiKey;
         if (state.provider === 'cohere') return state.cohereApiKey;
         if (state.provider === 'chutes') return state.chutesApiKey;
+        if (state.provider === 'fireworks') return state.fireworksApiKey;
         return state.apiKey;
       },
     }),
@@ -130,6 +139,7 @@ export const useSettingsStore = create<SettingsStore>()(
         groqApiKey: state.groqApiKey,
         cohereApiKey: state.cohereApiKey,
         chutesApiKey: state.chutesApiKey,
+        fireworksApiKey: state.fireworksApiKey,
         selectedModel: state.selectedModel,
         temperature: state.temperature,
         maxTokens: state.maxTokens,

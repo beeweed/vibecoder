@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,8 @@ export function SettingsModal() {
     setCohereApiKey,
     chutesApiKey,
     setChutesApiKey,
+    fireworksApiKey,
+    setFireworksApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -38,10 +40,12 @@ export function SettingsModal() {
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   const [showCohereApiKey, setShowCohereApiKey] = useState(false);
   const [showChutesApiKey, setShowChutesApiKey] = useState(false);
+  const [showFireworksApiKey, setShowFireworksApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
   const [localChutesApiKey, setLocalChutesApiKey] = useState(chutesApiKey || '');
+  const [localFireworksApiKey, setLocalFireworksApiKey] = useState(fireworksApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -59,6 +63,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalChutesApiKey(chutesApiKey || '');
   }, [chutesApiKey]);
+
+  useEffect(() => {
+    setLocalFireworksApiKey(fireworksApiKey || '');
+  }, [fireworksApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -112,6 +120,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveFireworksKey = async () => {
+    setFireworksApiKey(localFireworksApiKey || null);
+    if (localFireworksApiKey && provider === 'fireworks') {
+      await fetchModels('fireworks', localFireworksApiKey);
+      toast.success('Fireworks API key saved');
+    } else if (!localFireworksApiKey) {
+      if (provider === 'fireworks') setAvailableModels([]);
+      toast.success('Fireworks API key cleared');
+    } else {
+      toast.success('Fireworks API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -119,6 +140,7 @@ export function SettingsModal() {
       if (prov === 'groq') endpoint = '/api/models/groq';
       else if (prov === 'cohere') endpoint = '/api/models/cohere';
       else if (prov === 'chutes') endpoint = '/api/models/chutes';
+      else if (prov === 'fireworks') endpoint = '/api/models/fireworks';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -143,6 +165,7 @@ export function SettingsModal() {
     if (newProvider === 'groq') key = groqApiKey;
     else if (newProvider === 'cohere') key = cohereApiKey;
     else if (newProvider === 'chutes') key = chutesApiKey;
+    else if (newProvider === 'fireworks') key = fireworksApiKey;
     else key = apiKey;
     
     if (key) {
@@ -156,6 +179,7 @@ export function SettingsModal() {
     setLocalGroqApiKey('');
     setLocalCohereApiKey('');
     setLocalChutesApiKey('');
+    setLocalFireworksApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -164,6 +188,7 @@ export function SettingsModal() {
     if (provider === 'groq') key = groqApiKey;
     else if (provider === 'cohere') key = cohereApiKey;
     else if (provider === 'chutes') key = chutesApiKey;
+    else if (provider === 'fireworks') key = fireworksApiKey;
     else key = apiKey;
     
     if (key) {
@@ -175,6 +200,7 @@ export function SettingsModal() {
     if (provider === 'groq') return groqApiKey;
     if (provider === 'cohere') return cohereApiKey;
     if (provider === 'chutes') return chutesApiKey;
+    if (provider === 'fireworks') return fireworksApiKey;
     return apiKey;
   };
 
@@ -194,58 +220,71 @@ export function SettingsModal() {
               <label className="text-sm font-medium text-zinc-300">
                 AI Provider
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleProviderChange('openrouter')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'openrouter'
                       ? 'bg-violet-500/20 border-violet-500 text-violet-300'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
-                  <Globe className="w-4 h-4" />
+                  <Globe className="w-3.5 h-3.5" />
                   <span className="font-medium">OpenRouter</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleProviderChange('groq')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'groq'
                       ? 'bg-orange-500/20 border-orange-500 text-orange-300'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
-                  <Zap className="w-4 h-4" />
+                  <Zap className="w-3.5 h-3.5" />
                   <span className="font-medium">Groq</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleProviderChange('cohere')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'cohere'
                       ? 'bg-red-500/20 border-red-400 text-red-300'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
-                  <MessageSquare className="w-4 h-4" />
+                  <MessageSquare className="w-3.5 h-3.5" />
                   <span className="font-medium">Cohere</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleProviderChange('chutes')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'chutes'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
-                  <Rocket className="w-4 h-4" />
+                  <Rocket className="w-3.5 h-3.5" />
                   <span className="font-medium">Chutes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('fireworks')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'fireworks'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  <span className="font-medium">Fireworks</span>
                 </button>
               </div>
             </div>
@@ -460,6 +499,59 @@ export function SettingsModal() {
                   className="text-cyan-400 hover:underline"
                 >
                   chutes.ai/app
+                </a>
+              </p>
+            </div>
+
+            {/* Fireworks API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Fireworks API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showFireworksApiKey ? 'text' : 'password'}
+                    value={localFireworksApiKey}
+                    onChange={(e) => setLocalFireworksApiKey(e.target.value)}
+                    placeholder="fw_..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowFireworksApiKey(!showFireworksApiKey)}
+                  >
+                    {showFireworksApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveFireworksKey}
+                  disabled={isLoadingModels}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {isLoadingModels && provider === 'fireworks' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://fireworks.ai/account/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline"
+                >
+                  fireworks.ai/account/api-keys
                 </a>
               </p>
             </div>

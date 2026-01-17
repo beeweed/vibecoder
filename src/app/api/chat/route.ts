@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
-type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes';
+type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks';
 
 function getApiEndpoint(provider: Provider, model?: string): string {
   if (provider === 'groq') {
@@ -12,6 +12,9 @@ function getApiEndpoint(provider: Provider, model?: string): string {
   }
   if (provider === 'chutes') {
     return 'https://api.chutes.ai/v1/chat/completions';
+  }
+  if (provider === 'fireworks') {
+    return 'https://api.fireworks.ai/inference/v1/chat/completions';
   }
   return 'https://openrouter.ai/api/v1/chat/completions';
 }
