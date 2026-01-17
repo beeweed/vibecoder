@@ -3,13 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Settings, Download, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import { toast } from 'sonner';
@@ -109,36 +103,15 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Model selector - hidden on small screens, visible on medium+ */}
-        <Select
-          value={selectedModel}
-          onValueChange={setSelectedModel}
-          disabled={!apiKey || isLoadingModels}
-        >
-          <SelectTrigger className="hidden sm:flex w-[180px] md:w-[280px] bg-zinc-900 border-zinc-700">
-            {isLoadingModels ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden md:inline">Loading...</span>
-              </div>
-            ) : (
-              <SelectValue placeholder="Select model" />
-            )}
-          </SelectTrigger>
-          <SelectContent className="max-h-[400px]">
-            {availableModels.length > 0 ? (
-              availableModels.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  <span className="truncate">{model.name}</span>
-                </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="anthropic/claude-sonnet-4" disabled={!apiKey}>
-                {apiKey ? 'No models available' : 'Add API key first'}
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        {/* Model selector with search - hidden on small screens, visible on medium+ */}
+        <ModelSelector
+          models={availableModels}
+          selectedModel={selectedModel}
+          onSelectModel={setSelectedModel}
+          isLoading={isLoadingModels}
+          disabled={!apiKey}
+          placeholder={apiKey ? 'Select model' : 'Add API key first'}
+        />
 
         <Button
           variant="outline"
