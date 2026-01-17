@@ -1,10 +1,21 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-interface FireworksModel {
-  id: string;
-  object: string;
-  owned_by?: string;
-  context_length?: number;
+interface FireworksApiModel {
+  name: string;
+  displayName?: string;
+  description?: string;
+  contextLength?: number;
+  supportsImageInput?: boolean;
+  supportsTools?: boolean;
+  state?: string;
+  kind?: string;
+  public?: boolean;
+}
+
+interface FireworksApiResponse {
+  models?: FireworksApiModel[];
+  nextPageToken?: string;
+  totalSize?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -15,58 +26,108 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch('https://api.fireworks.ai/inference/v1/models', {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const allModels: FireworksApiModel[] = [];
+    let pageToken: string | undefined;
+    let hasMore = true;
 
-    if (!response.ok) {
-      let errorMessage = 'Failed to fetch models';
-      try {
-        const error = await response.json();
-        errorMessage = error.error?.message || error.message || errorMessage;
-      } catch {
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    while (hasMore) {
+      const url = new URL('https://api.fireworks.ai/v1/accounts/fireworks/models');
+      url.searchParams.set('pageSize', '200');
+      if (pageToken) {
+        url.searchParams.set('pageToken', pageToken);
       }
-      return NextResponse.json({ error: errorMessage }, { status: response.status });
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to fetch models';
+        try {
+          const error = await response.json();
+          errorMessage = error.error?.message || error.message || errorMessage;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        
+        if (allModels.length === 0) {
+          return NextResponse.json({ 
+            models: getDefaultFireworksModels(),
+            warning: errorMessage 
+          });
+        }
+        break;
+      }
+
+      const data: FireworksApiResponse = await response.json();
+      
+      if (data.models && data.models.length > 0) {
+        allModels.push(...data.models);
+      }
+
+      if (data.nextPageToken) {
+        pageToken = data.nextPageToken;
+      } else {
+        hasMore = false;
+      }
+
+      if (allModels.length >= 500) {
+        hasMore = false;
+      }
     }
 
-    const data = await response.json();
-
-    const modelsList = data.data || data || [];
-    
-    const models = modelsList
-      .filter((m: FireworksModel) => {
-        const id = m.id || '';
-        return id.includes('instruct') || 
-               id.includes('chat') || 
-               id.includes('llama') ||
-               id.includes('deepseek') ||
-               id.includes('qwen') ||
-               id.includes('mistral') ||
-               id.includes('gemma') ||
-               id.includes('coder');
+    const filteredModels = allModels
+      .filter((m: FireworksApiModel) => {
+        if (m.state && m.state !== 'DEPLOYED' && m.state !== 'ACTIVE') {
+          return false;
+        }
+        if (m.kind?.includes('EMBEDDING')) {
+          return false;
+        }
+        return true;
       })
-      .map((m: FireworksModel) => ({
-        id: m.id,
-        name: formatFireworksModelName(m.id),
-        contextLength: m.context_length || 32768,
-        pricing: {
-          prompt: 0,
-          completion: 0,
-        },
-      }))
-      .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
+      .map((m: FireworksApiModel) => {
+        const modelId = m.name.startsWith('accounts/') 
+          ? m.name 
+          : `accounts/fireworks/models/${m.name}`;
+        
+        return {
+          id: modelId,
+          name: m.displayName || formatFireworksModelName(modelId),
+          contextLength: m.contextLength || 32768,
+          description: m.description || undefined,
+          supportsImageInput: m.supportsImageInput || false,
+          supportsTools: m.supportsTools || false,
+          pricing: {
+            prompt: 0,
+            completion: 0,
+          },
+        };
+      })
+      .sort((a, b) => {
+        const priorityModels = ['deepseek', 'llama', 'qwen', 'mistral'];
+        const aHasPriority = priorityModels.some(p => a.id.toLowerCase().includes(p));
+        const bHasPriority = priorityModels.some(p => b.id.toLowerCase().includes(p));
+        
+        if (aHasPriority && !bHasPriority) return -1;
+        if (!aHasPriority && bHasPriority) return 1;
+        
+        return a.name.localeCompare(b.name);
+      });
 
-    if (models.length === 0) {
+    if (filteredModels.length === 0) {
       return NextResponse.json({ 
         models: getDefaultFireworksModels() 
       });
     }
 
-    return NextResponse.json({ models });
+    return NextResponse.json({ 
+      models: filteredModels,
+      totalCount: filteredModels.length 
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch models';
