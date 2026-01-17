@@ -61,12 +61,16 @@ export function AIPanel() {
   const cancelGeneration = useChatStore((s) => s.cancelGeneration);
   const getMessagesForAPI = useChatStore((s) => s.getMessagesForAPI);
 
+  const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
+  const groqApiKey = useSettingsStore((s) => s.groqApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
   const systemInstruction = useSettingsStore((s) => s.systemInstruction);
   const setSettingsOpen = useSettingsStore((s) => s.setSettingsOpen);
+
+  const activeApiKey = provider === 'groq' ? groqApiKey : apiKey;
 
   const status = useAgentStore((s) => s.status);
   const currentFile = useAgentStore((s) => s.currentFile);
@@ -119,8 +123,8 @@ export function AIPanel() {
   const handleSubmit = async () => {
     if (!input.trim() || isGenerating) return;
 
-    if (!apiKey) {
-      toast.error('Please add your OpenRouter API key in settings');
+    if (!activeApiKey) {
+      toast.error(`Please add your ${provider === 'groq' ? 'Groq' : 'OpenRouter'} API key in settings`);
       setSettingsOpen(true);
       return;
     }
@@ -149,7 +153,8 @@ export function AIPanel() {
         body: JSON.stringify({
           messages: [...getMessagesForAPI().slice(0, -1), { role: 'user', content: userMessage }],
           model: selectedModel,
-          apiKey,
+          apiKey: activeApiKey,
+          provider,
           temperature,
           maxTokens,
           systemInstruction,
@@ -312,8 +317,8 @@ export function AIPanel() {
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-4 py-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 px-4 py-4 w-full">
+        <div className="space-y-4 w-full overflow-hidden">
           {messages.length === 0 && (
             <div className="text-center py-12 text-zinc-500">
               <Bot className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -330,7 +335,7 @@ export function AIPanel() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={cn(
-                'flex gap-2 w-full',
+                'flex gap-2 w-full min-w-0',
                 message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
               )}
             >
@@ -351,14 +356,14 @@ export function AIPanel() {
 
               <div
                 className={cn(
-                  'rounded-lg px-3 py-2 max-w-[calc(100%-3rem)] overflow-hidden',
+                  'rounded-lg px-3 py-2 min-w-0 flex-1 max-w-[85%] overflow-x-auto',
                   message.role === 'user'
                     ? 'bg-violet-500/20 text-zinc-100'
                     : 'bg-zinc-900 text-zinc-300'
                 )}
               >
                 {message.role === 'assistant' ? (
-                  <div className="text-sm leading-relaxed break-words overflow-wrap-anywhere">
+                  <div className="text-sm leading-relaxed break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                     <ReactMarkdown
                       components={{
                         p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -389,7 +394,7 @@ export function AIPanel() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{message.content}</p>
                 )}
               </div>
             </motion.div>
@@ -406,11 +411,11 @@ export function AIPanel() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              apiKey
+              activeApiKey
                 ? 'Describe what you want to build...'
                 : 'Add API key in settings to start...'
             }
-            disabled={!apiKey || isGenerating}
+            disabled={!activeApiKey || isGenerating}
             rows={3}
             className="pr-12 resize-none bg-zinc-900 border-zinc-700 focus:border-violet-500"
           />
@@ -420,10 +425,12 @@ export function AIPanel() {
               'absolute right-2 bottom-2',
               isGenerating
                 ? 'bg-red-500 hover:bg-red-600'
-                : 'bg-violet-500 hover:bg-violet-600'
+                : provider === 'groq' 
+                  ? 'bg-orange-500 hover:bg-orange-600'
+                  : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
-            disabled={!apiKey || (!isGenerating && !input.trim())}
+            disabled={!activeApiKey || (!isGenerating && !input.trim())}
           >
             {isGenerating ? (
               <Square className="w-4 h-4" />

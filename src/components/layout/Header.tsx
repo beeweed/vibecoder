@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2 } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -11,7 +11,9 @@ import type { VirtualFile } from '@/types/files';
 
 export function Header() {
   const {
+    provider,
     apiKey,
+    groqApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -22,22 +24,26 @@ export function Header() {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
+  const activeApiKey = provider === 'groq' ? groqApiKey : apiKey;
+  
   const allFiles = useMemo(() => {
     return Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
   }, [nodes]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch on provider change
   useEffect(() => {
-    if (apiKey && availableModels.length === 0) {
+    if (activeApiKey && availableModels.length === 0) {
       fetchModels();
     }
-  }, [apiKey, availableModels.length]);
+  }, [activeApiKey, availableModels.length, provider]);
 
   const fetchModels = async () => {
-    if (!apiKey) return;
+    if (!activeApiKey) return;
     setIsLoadingModels(true);
     try {
-      const response = await fetch('/api/models', {
-        headers: { 'X-API-Key': apiKey },
+      const endpoint = provider === 'groq' ? '/api/models/groq' : '/api/models';
+      const response = await fetch(endpoint, {
+        headers: { 'X-API-Key': activeApiKey },
       });
       const data = await response.json();
       if (data.models) {
@@ -103,14 +109,26 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Provider indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700">
+          {provider === 'groq' ? (
+            <Zap className="w-3.5 h-3.5 text-orange-400" />
+          ) : (
+            <Globe className="w-3.5 h-3.5 text-violet-400" />
+          )}
+          <span className="text-xs font-medium text-zinc-400">
+            {provider === 'groq' ? 'Groq' : 'OpenRouter'}
+          </span>
+        </div>
+
         {/* Model selector with search - hidden on small screens, visible on medium+ */}
         <ModelSelector
           models={availableModels}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
           isLoading={isLoadingModels}
-          disabled={!apiKey}
-          placeholder={apiKey ? 'Select model' : 'Add API key first'}
+          disabled={!activeApiKey}
+          placeholder={activeApiKey ? 'Select model' : 'Add API key first'}
         />
 
         <Button

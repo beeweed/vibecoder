@@ -1,6 +1,32 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
+type Provider = 'openrouter' | 'groq';
+
+function getApiEndpoint(provider: Provider): string {
+  if (provider === 'groq') {
+    return 'https://api.groq.com/openai/v1/chat/completions';
+  }
+  return 'https://openrouter.ai/api/v1/chat/completions';
+}
+
+function getApiHeaders(provider: Provider, apiKey: string): Record<string, string> {
+  const baseHeaders = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+
+  if (provider === 'openrouter') {
+    return {
+      ...baseHeaders,
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      'X-Title': 'VibeCoder',
+    };
+  }
+
+  return baseHeaders;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -12,6 +38,7 @@ export async function POST(request: NextRequest) {
       maxTokens,
       systemInstruction,
       fileContext,
+      provider = 'openrouter',
     } = body;
 
     if (!apiKey) {
@@ -40,15 +67,10 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           const response = await fetch(
-            'https://openrouter.ai/api/v1/chat/completions',
+            getApiEndpoint(provider),
             {
               method: 'POST',
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-                'X-Title': 'VibeCoder',
-              },
+              headers: getApiHeaders(provider, apiKey),
               body: JSON.stringify({
                 model,
                 messages: apiMessages,
