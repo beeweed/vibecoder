@@ -66,19 +66,30 @@ body {
   overflow: hidden;
 }
 
+/* CSS custom property for safe area - with fallback */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
 /* Safe area insets for mobile browsers */
 .safe-area-pt {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--sat);
 }
 
 .safe-area-pb {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--sab);
 }
 
-/* Fallback padding for browsers that don't support env() */
+/* Main app container - apply safe area padding */
+.app-container {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* For browsers that don't support env() - ensure content is visible */
 @supports not (padding-top: env(safe-area-inset-top)) {
-  .safe-area-pt {
-    padding-top: 0px;
+  .app-container {
+    padding-top: 0;
   }
 }
 

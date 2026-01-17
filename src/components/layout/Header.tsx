@@ -96,7 +96,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 min-h-[56px] border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-3 md:px-4 flex-shrink-0">
+    <header className="h-14 min-h-[56px] border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-3 md:px-4 flex-shrink-0 relative z-50">
       <div className="flex items-center gap-2 md:gap-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">

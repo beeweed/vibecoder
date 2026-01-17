@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { AIPanel } from '@/components/ai-panel/AIPanel';
 import { FileExplorer } from '@/components/file-explorer/FileExplorer';
@@ -9,11 +9,47 @@ import { SettingsModal } from '@/components/modals/SettingsModal';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Toaster } from '@/components/ui/sonner';
 
+function useViewportHeight() {
+  const [vh, setVh] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateVh = () => {
+      // Get the actual visible viewport height
+      const visualViewport = window.visualViewport;
+      if (visualViewport) {
+        setVh(visualViewport.height);
+      } else {
+        setVh(window.innerHeight);
+      }
+    };
+
+    updateVh();
+    
+    // Listen for viewport changes (keyboard, address bar hide/show)
+    window.visualViewport?.addEventListener('resize', updateVh);
+    window.addEventListener('resize', updateVh);
+    
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateVh);
+      window.removeEventListener('resize', updateVh);
+    };
+  }, []);
+
+  return vh;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'ai' | 'explorer' | 'editor'>('ai');
+  const vh = useViewportHeight();
 
   return (
-    <div className="h-screen h-[100dvh] flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden safe-area-pt">
+    <div 
+      className="flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden"
+      style={{ 
+        height: vh ? `${vh}px` : '100dvh',
+        minHeight: vh ? `${vh}px` : '100dvh'
+      }}
+    >
       <Header />
       
       {/* Desktop Layout */}
