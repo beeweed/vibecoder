@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -26,8 +25,6 @@ export function SettingsModal() {
     setTemperature,
     maxTokens,
     setMaxTokens,
-    systemInstruction,
-    setSystemInstruction,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -174,24 +171,6 @@ export function SettingsModal() {
               step={256}
               className="w-full"
             />
-          </div>
-
-          <Separator className="bg-zinc-800" />
-
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300">
-              System Instruction
-            </label>
-            <Textarea
-              value={systemInstruction}
-              onChange={(e) => setSystemInstruction(e.target.value)}
-              placeholder="Additional instructions for the AI..."
-              rows={4}
-              className="bg-zinc-800 border-zinc-700 resize-none"
-            />
-            <p className="text-xs text-zinc-500">
-              Custom instructions added to the system prompt
-            </p>
           </div>
 
           <Separator className="bg-zinc-800" />
