@@ -4,7 +4,7 @@ vibecoder, open source code generation platform. (Build with ii-agent and beewee
 
 run this application;
 
-'npm install && npm run dev'
+npm install && npm run dev
 
 
 This is in development 
