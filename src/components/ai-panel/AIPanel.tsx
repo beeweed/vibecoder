@@ -330,44 +330,66 @@ export function AIPanel() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={cn(
-                'flex gap-3',
-                message.role === 'user' ? 'flex-row-reverse' : ''
+                'flex gap-2 w-full',
+                message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
               )}
             >
               <div
                 className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
+                  'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
                   message.role === 'user'
                     ? 'bg-violet-500/20 text-violet-400'
                     : 'bg-zinc-800 text-zinc-400'
                 )}
               >
                 {message.role === 'user' ? (
-                  <User className="w-4 h-4" />
+                  <User className="w-3.5 h-3.5" />
                 ) : (
-                  <Bot className="w-4 h-4" />
+                  <Bot className="w-3.5 h-3.5" />
                 )}
               </div>
 
               <div
                 className={cn(
-                  'flex-1 rounded-lg px-4 py-3',
+                  'rounded-lg px-3 py-2 max-w-[calc(100%-3rem)] overflow-hidden',
                   message.role === 'user'
                     ? 'bg-violet-500/20 text-zinc-100'
                     : 'bg-zinc-900 text-zinc-300'
                 )}
               >
                 {message.role === 'assistant' ? (
-                  <div className="prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>
+                  <div className="text-sm leading-relaxed break-words overflow-wrap-anywhere">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                        li: ({ children }) => <li className="text-sm">{children}</li>,
+                        code: ({ children }) => (
+                          <code className="bg-zinc-800 px-1 py-0.5 rounded text-xs font-mono break-all">
+                            {children}
+                          </code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="bg-zinc-800 p-2 rounded text-xs overflow-x-auto my-2">
+                            {children}
+                          </pre>
+                        ),
+                        strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 text-zinc-100">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 text-zinc-100">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 text-zinc-100">{children}</h3>,
+                      }}
+                    >
                       {message.content || (message.isStreaming ? '...' : '')}
                     </ReactMarkdown>
                     {message.isStreaming && (
-                      <span className="inline-block w-2 h-4 ml-1 bg-violet-400 animate-pulse" />
+                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-violet-400 animate-pulse align-middle" />
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                 )}
               </div>
             </motion.div>

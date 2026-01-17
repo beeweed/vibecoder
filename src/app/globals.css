@@ -132,3 +132,32 @@ body {
 .animate-pulse-border {
   animation: pulse-border 2s infinite;
 }
+
+/* Text wrapping utilities for chat bubbles */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* Improve message bubble text handling */
+.break-words {
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Chat message styling */
+.chat-message {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.chat-message p {
+  margin: 0;
+  word-wrap: break-word;
+}
+
+.chat-message code {
+  word-break: break-all;
+}
