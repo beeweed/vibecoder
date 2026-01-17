@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettingsStore, type Provider } from '@/stores/settingsStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -25,14 +26,18 @@ export function SettingsModal() {
     setApiKey,
     groqApiKey,
     setGroqApiKey,
+    cohereApiKey,
+    setCohereApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
 
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
+  const [showCohereApiKey, setShowCohereApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
+  const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -42,6 +47,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalGroqApiKey(groqApiKey || '');
   }, [groqApiKey]);
+
+  useEffect(() => {
+    setLocalCohereApiKey(cohereApiKey || '');
+  }, [cohereApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -69,10 +78,26 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveCohereKey = async () => {
+    setCohereApiKey(localCohereApiKey || null);
+    if (localCohereApiKey && provider === 'cohere') {
+      await fetchModels('cohere', localCohereApiKey);
+      toast.success('Cohere API key saved');
+    } else if (!localCohereApiKey) {
+      if (provider === 'cohere') setAvailableModels([]);
+      toast.success('Cohere API key cleared');
+    } else {
+      toast.success('Cohere API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
-      const endpoint = prov === 'groq' ? '/api/models/groq' : '/api/models';
+      let endpoint = '/api/models';
+      if (prov === 'groq') endpoint = '/api/models/groq';
+      else if (prov === 'cohere') endpoint = '/api/models/cohere';
+      
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
       });
@@ -92,7 +117,11 @@ export function SettingsModal() {
 
   const handleProviderChange = async (newProvider: Provider) => {
     setProvider(newProvider);
-    const key = newProvider === 'groq' ? groqApiKey : apiKey;
+    let key: string | null = null;
+    if (newProvider === 'groq') key = groqApiKey;
+    else if (newProvider === 'cohere') key = cohereApiKey;
+    else key = apiKey;
+    
     if (key) {
       await fetchModels(newProvider, key);
     }
@@ -102,195 +131,274 @@ export function SettingsModal() {
     clearSettings();
     setLocalApiKey('');
     setLocalGroqApiKey('');
+    setLocalCohereApiKey('');
     toast.success('Settings cleared');
   };
 
   const handleRefreshModels = async () => {
-    const key = provider === 'groq' ? groqApiKey : apiKey;
+    let key: string | null = null;
+    if (provider === 'groq') key = groqApiKey;
+    else if (provider === 'cohere') key = cohereApiKey;
+    else key = apiKey;
+    
     if (key) {
       await fetchModels(provider, key);
     }
   };
 
-  const activeKey = provider === 'groq' ? groqApiKey : apiKey;
+  const getActiveKey = (): string | null => {
+    if (provider === 'groq') return groqApiKey;
+    if (provider === 'cohere') return cohereApiKey;
+    return apiKey;
+  };
+
+  const activeKey = getActiveKey();
 
   return (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-900 border-zinc-800">
+      <DialogContent className="sm:max-w-[500px] bg-zinc-900 border-zinc-800 max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Settings</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Provider Selection */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300">
-              AI Provider
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleProviderChange('openrouter')}
-                className={cn(
-                  'flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all',
-                  provider === 'openrouter'
-                    ? 'bg-violet-500/20 border-violet-500 text-violet-300'
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
-                )}
-              >
-                <Globe className="w-4 h-4" />
-                <span className="font-medium">OpenRouter</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleProviderChange('groq')}
-                className={cn(
-                  'flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all',
-                  provider === 'groq'
-                    ? 'bg-orange-500/20 border-orange-500 text-orange-300'
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
-                )}
-              >
-                <Zap className="w-4 h-4" />
-                <span className="font-medium">Groq</span>
-              </button>
-            </div>
-          </div>
-
-          <Separator className="bg-zinc-800" />
-
-          {/* OpenRouter API Key */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300">
-              OpenRouter API Key
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={localApiKey}
-                  onChange={(e) => setLocalApiKey(e.target.value)}
-                  placeholder="sk-or-v1-..."
-                  className="pr-10 bg-zinc-800 border-zinc-700"
-                />
-                <Button
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <div className="space-y-6 py-4">
+            {/* Provider Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                AI Provider
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={() => setShowApiKey(!showApiKey)}
+                  onClick={() => handleProviderChange('openrouter')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    provider === 'openrouter'
+                      ? 'bg-violet-500/20 border-violet-500 text-violet-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
                 >
-                  {showApiKey ? (
-                    <EyeOff className="w-4 h-4" />
+                  <Globe className="w-4 h-4" />
+                  <span className="font-medium">OpenRouter</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('groq')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    provider === 'groq'
+                      ? 'bg-orange-500/20 border-orange-500 text-orange-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="font-medium">Groq</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('cohere')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    provider === 'cohere'
+                      ? 'bg-coral-500/20 border-coral-500 text-coral-300 bg-red-500/20 border-red-400 text-red-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="font-medium">Cohere</span>
+                </button>
+              </div>
+            </div>
+
+            <Separator className="bg-zinc-800" />
+
+            {/* OpenRouter API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                OpenRouter API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={localApiKey}
+                    onChange={(e) => setLocalApiKey(e.target.value)}
+                    placeholder="sk-or-v1-..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveOpenRouterKey}
+                  disabled={isLoadingModels}
+                  className="bg-violet-600 hover:bg-violet-700"
+                >
+                  {isLoadingModels && provider === 'openrouter' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Eye className="w-4 h-4" />
+                    'Save'
                   )}
                 </Button>
               </div>
-              <Button
-                onClick={handleSaveOpenRouterKey}
-                disabled={isLoadingModels}
-                className="bg-violet-600 hover:bg-violet-700"
-              >
-                {isLoadingModels && provider === 'openrouter' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Save'
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-zinc-500">
-              Get your API key from{' '}
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-400 hover:underline"
-              >
-                openrouter.ai/keys
-              </a>
-            </p>
-          </div>
-
-          {/* Groq API Key */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300">
-              Groq API Key
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showGroqApiKey ? 'text' : 'password'}
-                  value={localGroqApiKey}
-                  onChange={(e) => setLocalGroqApiKey(e.target.value)}
-                  placeholder="gsk_..."
-                  className="pr-10 bg-zinc-800 border-zinc-700"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={() => setShowGroqApiKey(!showGroqApiKey)}
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-violet-400 hover:underline"
                 >
-                  {showGroqApiKey ? (
-                    <EyeOff className="w-4 h-4" />
+                  openrouter.ai/keys
+                </a>
+              </p>
+            </div>
+
+            {/* Groq API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Groq API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showGroqApiKey ? 'text' : 'password'}
+                    value={localGroqApiKey}
+                    onChange={(e) => setLocalGroqApiKey(e.target.value)}
+                    placeholder="gsk_..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowGroqApiKey(!showGroqApiKey)}
+                  >
+                    {showGroqApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveGroqKey}
+                  disabled={isLoadingModels}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {isLoadingModels && provider === 'groq' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Eye className="w-4 h-4" />
+                    'Save'
                   )}
                 </Button>
               </div>
-              <Button
-                onClick={handleSaveGroqKey}
-                disabled={isLoadingModels}
-                className="bg-orange-600 hover:bg-orange-700"
-              >
-                {isLoadingModels && provider === 'groq' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Save'
-                )}
-              </Button>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://console.groq.com/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-400 hover:underline"
+                >
+                  console.groq.com/keys
+                </a>
+              </p>
             </div>
-            <p className="text-xs text-zinc-500">
-              Get your API key from{' '}
-              <a
-                href="https://console.groq.com/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-orange-400 hover:underline"
-              >
-                console.groq.com/keys
-              </a>
-            </p>
-          </div>
 
-          <Separator className="bg-zinc-800" />
+            {/* Cohere API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Cohere API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showCohereApiKey ? 'text' : 'password'}
+                    value={localCohereApiKey}
+                    onChange={(e) => setLocalCohereApiKey(e.target.value)}
+                    placeholder="..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowCohereApiKey(!showCohereApiKey)}
+                  >
+                    {showCohereApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveCohereKey}
+                  disabled={isLoadingModels}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isLoadingModels && provider === 'cohere' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://dashboard.cohere.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-400 hover:underline"
+                >
+                  dashboard.cohere.com/api-keys
+                </a>
+              </p>
+            </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleClearSettings}
-              className="flex-1 border-zinc-700 hover:bg-zinc-800"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear All Settings
-            </Button>
-            {activeKey && (
+            <Separator className="bg-zinc-800" />
+
+            <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={handleRefreshModels}
-                disabled={isLoadingModels}
-                className="border-zinc-700 hover:bg-zinc-800"
+                onClick={handleClearSettings}
+                className="flex-1 border-zinc-700 hover:bg-zinc-800"
               >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${isLoadingModels ? 'animate-spin' : ''}`}
-                />
-                Refresh Models
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All
               </Button>
-            )}
+              {activeKey && (
+                <Button
+                  variant="outline"
+                  onClick={handleRefreshModels}
+                  disabled={isLoadingModels}
+                  className="border-zinc-700 hover:bg-zinc-800"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 mr-2 ${isLoadingModels ? 'animate-spin' : ''}`}
+                  />
+                  Refresh
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

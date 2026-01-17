@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -14,6 +14,7 @@ export function Header() {
     provider,
     apiKey,
     groqApiKey,
+    cohereApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -24,7 +25,13 @@ export function Header() {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
-  const activeApiKey = provider === 'groq' ? groqApiKey : apiKey;
+  const getActiveApiKey = (): string | null => {
+    if (provider === 'groq') return groqApiKey;
+    if (provider === 'cohere') return cohereApiKey;
+    return apiKey;
+  };
+  
+  const activeApiKey = getActiveApiKey();
   
   const allFiles = useMemo(() => {
     return Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
@@ -41,7 +48,10 @@ export function Header() {
     if (!activeApiKey) return;
     setIsLoadingModels(true);
     try {
-      const endpoint = provider === 'groq' ? '/api/models/groq' : '/api/models';
+      let endpoint = '/api/models';
+      if (provider === 'groq') endpoint = '/api/models/groq';
+      else if (provider === 'cohere') endpoint = '/api/models/cohere';
+      
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
       });
@@ -113,11 +123,13 @@ export function Header() {
         <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700">
           {provider === 'groq' ? (
             <Zap className="w-3.5 h-3.5 text-orange-400" />
+          ) : provider === 'cohere' ? (
+            <MessageSquare className="w-3.5 h-3.5 text-red-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : 'OpenRouter'}
           </span>
         </div>
 

@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { OpenRouterModel } from '@/types/openrouter';
 
-export type Provider = 'openrouter' | 'groq';
+export type Provider = 'openrouter' | 'groq' | 'cohere';
 
 interface SettingsStore {
   provider: Provider;
   apiKey: string | null;
   groqApiKey: string | null;
+  cohereApiKey: string | null;
   selectedModel: string;
   temperature: number;
   maxTokens: number;
@@ -18,6 +19,7 @@ interface SettingsStore {
   setProvider: (provider: Provider) => void;
   setApiKey: (key: string | null) => void;
   setGroqApiKey: (key: string | null) => void;
+  setCohereApiKey: (key: string | null) => void;
   setSelectedModel: (modelId: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
@@ -44,12 +46,24 @@ Rules:
 - Provide complete file contents, not snippets
 - Keep chat explanations brief`;
 
+const getDefaultModel = (provider: Provider): string => {
+  switch (provider) {
+    case 'groq':
+      return 'llama-3.3-70b-versatile';
+    case 'cohere':
+      return 'command-a-03-2025';
+    default:
+      return 'anthropic/claude-sonnet-4';
+  }
+};
+
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set, get) => ({
       provider: 'openrouter' as Provider,
       apiKey: null,
       groqApiKey: null,
+      cohereApiKey: null,
       selectedModel: 'anthropic/claude-sonnet-4',
       temperature: 0.7,
       maxTokens: 8192,
@@ -58,11 +72,11 @@ export const useSettingsStore = create<SettingsStore>()(
       isSettingsOpen: false,
 
       setProvider: (provider: Provider) => {
-        const defaultModel = provider === 'groq' ? 'llama-3.3-70b-versatile' : 'anthropic/claude-sonnet-4';
-        set({ provider, selectedModel: defaultModel, availableModels: [] });
+        set({ provider, selectedModel: getDefaultModel(provider), availableModels: [] });
       },
       setApiKey: (key: string | null) => set({ apiKey: key }),
       setGroqApiKey: (key: string | null) => set({ groqApiKey: key }),
+      setCohereApiKey: (key: string | null) => set({ cohereApiKey: key }),
       setSelectedModel: (modelId: string) => set({ selectedModel: modelId }),
       setTemperature: (temp: number) => set({ temperature: temp }),
       setMaxTokens: (tokens: number) => set({ maxTokens: tokens }),
@@ -75,6 +89,7 @@ export const useSettingsStore = create<SettingsStore>()(
           provider: 'openrouter',
           apiKey: null,
           groqApiKey: null,
+          cohereApiKey: null,
           selectedModel: 'anthropic/claude-sonnet-4',
           temperature: 0.7,
           maxTokens: 8192,
@@ -84,13 +99,18 @@ export const useSettingsStore = create<SettingsStore>()(
 
       isConfigured: () => {
         const state = get();
-        const activeKey = state.provider === 'groq' ? state.groqApiKey : state.apiKey;
+        let activeKey: string | null = null;
+        if (state.provider === 'groq') activeKey = state.groqApiKey;
+        else if (state.provider === 'cohere') activeKey = state.cohereApiKey;
+        else activeKey = state.apiKey;
         return !!activeKey && !!state.selectedModel;
       },
 
       getActiveApiKey: () => {
         const state = get();
-        return state.provider === 'groq' ? state.groqApiKey : state.apiKey;
+        if (state.provider === 'groq') return state.groqApiKey;
+        if (state.provider === 'cohere') return state.cohereApiKey;
+        return state.apiKey;
       },
     }),
     {
@@ -99,6 +119,7 @@ export const useSettingsStore = create<SettingsStore>()(
         provider: state.provider,
         apiKey: state.apiKey,
         groqApiKey: state.groqApiKey,
+        cohereApiKey: state.cohereApiKey,
         selectedModel: state.selectedModel,
         temperature: state.temperature,
         maxTokens: state.maxTokens,

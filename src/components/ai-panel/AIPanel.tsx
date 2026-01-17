@@ -64,13 +64,20 @@ export function AIPanel() {
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
   const groqApiKey = useSettingsStore((s) => s.groqApiKey);
+  const cohereApiKey = useSettingsStore((s) => s.cohereApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
   const systemInstruction = useSettingsStore((s) => s.systemInstruction);
   const setSettingsOpen = useSettingsStore((s) => s.setSettingsOpen);
 
-  const activeApiKey = provider === 'groq' ? groqApiKey : apiKey;
+  const getActiveApiKey = (): string | null => {
+    if (provider === 'groq') return groqApiKey;
+    if (provider === 'cohere') return cohereApiKey;
+    return apiKey;
+  };
+  
+  const activeApiKey = getActiveApiKey();
 
   const status = useAgentStore((s) => s.status);
   const currentFile = useAgentStore((s) => s.currentFile);
@@ -124,7 +131,8 @@ export function AIPanel() {
     if (!input.trim() || isGenerating) return;
 
     if (!activeApiKey) {
-      toast.error(`Please add your ${provider === 'groq' ? 'Groq' : 'OpenRouter'} API key in settings`);
+      const providerName = provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : 'OpenRouter';
+      toast.error(`Please add your ${providerName} API key in settings`);
       setSettingsOpen(true);
       return;
     }
@@ -427,7 +435,9 @@ export function AIPanel() {
                 ? 'bg-red-500 hover:bg-red-600'
                 : provider === 'groq' 
                   ? 'bg-orange-500 hover:bg-orange-600'
-                  : 'bg-violet-500 hover:bg-violet-600'
+                  : provider === 'cohere'
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}
