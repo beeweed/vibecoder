@@ -65,6 +65,7 @@ export function AIPanel() {
   const apiKey = useSettingsStore((s) => s.apiKey);
   const groqApiKey = useSettingsStore((s) => s.groqApiKey);
   const cohereApiKey = useSettingsStore((s) => s.cohereApiKey);
+  const chutesApiKey = useSettingsStore((s) => s.chutesApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
@@ -74,6 +75,7 @@ export function AIPanel() {
   const getActiveApiKey = (): string | null => {
     if (provider === 'groq') return groqApiKey;
     if (provider === 'cohere') return cohereApiKey;
+    if (provider === 'chutes') return chutesApiKey;
     return apiKey;
   };
   
@@ -131,7 +133,13 @@ export function AIPanel() {
     if (!input.trim() || isGenerating) return;
 
     if (!activeApiKey) {
-      const providerName = provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : 'OpenRouter';
+      const providerNames: Record<string, string> = {
+        groq: 'Groq',
+        cohere: 'Cohere',
+        chutes: 'Chutes',
+        openrouter: 'OpenRouter',
+      };
+      const providerName = providerNames[provider] || 'OpenRouter';
       toast.error(`Please add your ${providerName} API key in settings`);
       setSettingsOpen(true);
       return;
@@ -437,7 +445,9 @@ export function AIPanel() {
                   ? 'bg-orange-500 hover:bg-orange-600'
                   : provider === 'cohere'
                     ? 'bg-red-500 hover:bg-red-600'
-                    : 'bg-violet-500 hover:bg-violet-600'
+                    : provider === 'chutes'
+                      ? 'bg-cyan-500 hover:bg-cyan-600'
+                      : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}

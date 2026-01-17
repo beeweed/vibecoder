@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -15,6 +15,7 @@ export function Header() {
     apiKey,
     groqApiKey,
     cohereApiKey,
+    chutesApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -28,6 +29,7 @@ export function Header() {
   const getActiveApiKey = (): string | null => {
     if (provider === 'groq') return groqApiKey;
     if (provider === 'cohere') return cohereApiKey;
+    if (provider === 'chutes') return chutesApiKey;
     return apiKey;
   };
   
@@ -51,6 +53,7 @@ export function Header() {
       let endpoint = '/api/models';
       if (provider === 'groq') endpoint = '/api/models/groq';
       else if (provider === 'cohere') endpoint = '/api/models/cohere';
+      else if (provider === 'chutes') endpoint = '/api/models/chutes';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
@@ -125,11 +128,13 @@ export function Header() {
             <Zap className="w-3.5 h-3.5 text-orange-400" />
           ) : provider === 'cohere' ? (
             <MessageSquare className="w-3.5 h-3.5 text-red-400" />
+          ) : provider === 'chutes' ? (
+            <Rocket className="w-3.5 h-3.5 text-cyan-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : 'OpenRouter'}
           </span>
         </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,8 @@ export function SettingsModal() {
     setGroqApiKey,
     cohereApiKey,
     setCohereApiKey,
+    chutesApiKey,
+    setChutesApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -35,9 +37,11 @@ export function SettingsModal() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   const [showCohereApiKey, setShowCohereApiKey] = useState(false);
+  const [showChutesApiKey, setShowChutesApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
+  const [localChutesApiKey, setLocalChutesApiKey] = useState(chutesApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -51,6 +55,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalCohereApiKey(cohereApiKey || '');
   }, [cohereApiKey]);
+
+  useEffect(() => {
+    setLocalChutesApiKey(chutesApiKey || '');
+  }, [chutesApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -91,12 +99,26 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveChutesKey = async () => {
+    setChutesApiKey(localChutesApiKey || null);
+    if (localChutesApiKey && provider === 'chutes') {
+      await fetchModels('chutes', localChutesApiKey);
+      toast.success('Chutes API key saved');
+    } else if (!localChutesApiKey) {
+      if (provider === 'chutes') setAvailableModels([]);
+      toast.success('Chutes API key cleared');
+    } else {
+      toast.success('Chutes API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
       let endpoint = '/api/models';
       if (prov === 'groq') endpoint = '/api/models/groq';
       else if (prov === 'cohere') endpoint = '/api/models/cohere';
+      else if (prov === 'chutes') endpoint = '/api/models/chutes';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -120,6 +142,7 @@ export function SettingsModal() {
     let key: string | null = null;
     if (newProvider === 'groq') key = groqApiKey;
     else if (newProvider === 'cohere') key = cohereApiKey;
+    else if (newProvider === 'chutes') key = chutesApiKey;
     else key = apiKey;
     
     if (key) {
@@ -132,6 +155,7 @@ export function SettingsModal() {
     setLocalApiKey('');
     setLocalGroqApiKey('');
     setLocalCohereApiKey('');
+    setLocalChutesApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -139,6 +163,7 @@ export function SettingsModal() {
     let key: string | null = null;
     if (provider === 'groq') key = groqApiKey;
     else if (provider === 'cohere') key = cohereApiKey;
+    else if (provider === 'chutes') key = chutesApiKey;
     else key = apiKey;
     
     if (key) {
@@ -149,6 +174,7 @@ export function SettingsModal() {
   const getActiveKey = (): string | null => {
     if (provider === 'groq') return groqApiKey;
     if (provider === 'cohere') return cohereApiKey;
+    if (provider === 'chutes') return chutesApiKey;
     return apiKey;
   };
 
@@ -168,7 +194,7 @@ export function SettingsModal() {
               <label className="text-sm font-medium text-zinc-300">
                 AI Provider
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => handleProviderChange('openrouter')}
@@ -201,12 +227,25 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
                     provider === 'cohere'
-                      ? 'bg-coral-500/20 border-coral-500 text-coral-300 bg-red-500/20 border-red-400 text-red-300'
+                      ? 'bg-red-500/20 border-red-400 text-red-300'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span className="font-medium">Cohere</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('chutes')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all text-sm',
+                    provider === 'chutes'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Rocket className="w-4 h-4" />
+                  <span className="font-medium">Chutes</span>
                 </button>
               </div>
             </div>
@@ -368,6 +407,59 @@ export function SettingsModal() {
                   className="text-red-400 hover:underline"
                 >
                   dashboard.cohere.com/api-keys
+                </a>
+              </p>
+            </div>
+
+            {/* Chutes API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Chutes API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showChutesApiKey ? 'text' : 'password'}
+                    value={localChutesApiKey}
+                    onChange={(e) => setLocalChutesApiKey(e.target.value)}
+                    placeholder="cpk_..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowChutesApiKey(!showChutesApiKey)}
+                  >
+                    {showChutesApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveChutesKey}
+                  disabled={isLoadingModels}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                >
+                  {isLoadingModels && provider === 'chutes' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://chutes.ai/app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:underline"
+                >
+                  chutes.ai/app
                 </a>
               </p>
             </div>

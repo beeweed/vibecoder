@@ -1,14 +1,17 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
-type Provider = 'openrouter' | 'groq' | 'cohere';
+type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes';
 
-function getApiEndpoint(provider: Provider): string {
+function getApiEndpoint(provider: Provider, model?: string): string {
   if (provider === 'groq') {
     return 'https://api.groq.com/openai/v1/chat/completions';
   }
   if (provider === 'cohere') {
     return 'https://api.cohere.com/v2/chat';
+  }
+  if (provider === 'chutes') {
+    return 'https://api.chutes.ai/v1/chat/completions';
   }
   return 'https://openrouter.ai/api/v1/chat/completions';
 }
