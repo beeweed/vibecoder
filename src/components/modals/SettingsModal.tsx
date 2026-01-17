@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,8 @@ export function SettingsModal() {
     setChutesApiKey,
     fireworksApiKey,
     setFireworksApiKey,
+    cerebrasApiKey,
+    setCerebrasApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -41,11 +43,13 @@ export function SettingsModal() {
   const [showCohereApiKey, setShowCohereApiKey] = useState(false);
   const [showChutesApiKey, setShowChutesApiKey] = useState(false);
   const [showFireworksApiKey, setShowFireworksApiKey] = useState(false);
+  const [showCerebrasApiKey, setShowCerebrasApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
   const [localChutesApiKey, setLocalChutesApiKey] = useState(chutesApiKey || '');
   const [localFireworksApiKey, setLocalFireworksApiKey] = useState(fireworksApiKey || '');
+  const [localCerebrasApiKey, setLocalCerebrasApiKey] = useState(cerebrasApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -67,6 +71,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalFireworksApiKey(fireworksApiKey || '');
   }, [fireworksApiKey]);
+
+  useEffect(() => {
+    setLocalCerebrasApiKey(cerebrasApiKey || '');
+  }, [cerebrasApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -133,6 +141,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveCerebrasKey = async () => {
+    setCerebrasApiKey(localCerebrasApiKey || null);
+    if (localCerebrasApiKey && provider === 'cerebras') {
+      await fetchModels('cerebras', localCerebrasApiKey);
+      toast.success('Cerebras API key saved');
+    } else if (!localCerebrasApiKey) {
+      if (provider === 'cerebras') setAvailableModels([]);
+      toast.success('Cerebras API key cleared');
+    } else {
+      toast.success('Cerebras API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -141,6 +162,7 @@ export function SettingsModal() {
       else if (prov === 'cohere') endpoint = '/api/models/cohere';
       else if (prov === 'chutes') endpoint = '/api/models/chutes';
       else if (prov === 'fireworks') endpoint = '/api/models/fireworks';
+      else if (prov === 'cerebras') endpoint = '/api/models/cerebras';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -166,6 +188,7 @@ export function SettingsModal() {
     else if (newProvider === 'cohere') key = cohereApiKey;
     else if (newProvider === 'chutes') key = chutesApiKey;
     else if (newProvider === 'fireworks') key = fireworksApiKey;
+    else if (newProvider === 'cerebras') key = cerebrasApiKey;
     else key = apiKey;
     
     if (key) {
@@ -180,6 +203,7 @@ export function SettingsModal() {
     setLocalCohereApiKey('');
     setLocalChutesApiKey('');
     setLocalFireworksApiKey('');
+    setLocalCerebrasApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -189,6 +213,7 @@ export function SettingsModal() {
     else if (provider === 'cohere') key = cohereApiKey;
     else if (provider === 'chutes') key = chutesApiKey;
     else if (provider === 'fireworks') key = fireworksApiKey;
+    else if (provider === 'cerebras') key = cerebrasApiKey;
     else key = apiKey;
     
     if (key) {
@@ -201,6 +226,7 @@ export function SettingsModal() {
     if (provider === 'cohere') return cohereApiKey;
     if (provider === 'chutes') return chutesApiKey;
     if (provider === 'fireworks') return fireworksApiKey;
+    if (provider === 'cerebras') return cerebrasApiKey;
     return apiKey;
   };
 
@@ -285,6 +311,19 @@ export function SettingsModal() {
                 >
                   <Flame className="w-3.5 h-3.5" />
                   <span className="font-medium">Fireworks</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('cerebras')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'cerebras'
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  <span className="font-medium">Cerebras</span>
                 </button>
               </div>
             </div>
@@ -552,6 +591,59 @@ export function SettingsModal() {
                   className="text-amber-400 hover:underline"
                 >
                   fireworks.ai/account/api-keys
+                </a>
+              </p>
+            </div>
+
+            {/* Cerebras API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Cerebras API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showCerebrasApiKey ? 'text' : 'password'}
+                    value={localCerebrasApiKey}
+                    onChange={(e) => setLocalCerebrasApiKey(e.target.value)}
+                    placeholder="csk-..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowCerebrasApiKey(!showCerebrasApiKey)}
+                  >
+                    {showCerebrasApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveCerebrasKey}
+                  disabled={isLoadingModels}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {isLoadingModels && provider === 'cerebras' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://cloud.cerebras.ai/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-400 hover:underline"
+                >
+                  cloud.cerebras.ai/api-keys
                 </a>
               </p>
             </div>
