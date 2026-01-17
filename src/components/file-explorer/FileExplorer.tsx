@@ -8,7 +8,6 @@ import {
   Plus,
   FolderPlus,
   Trash2,
-  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,7 +142,6 @@ export function FileExplorer() {
   const rootChildren = useFileSystemStore((s) => s.rootChildren);
   const createFile = useFileSystemStore((s) => s.createFile);
   const createFolder = useFileSystemStore((s) => s.createFolder);
-  const clearFileSystem = useFileSystemStore((s) => s.clearFileSystem);
 
   const [isCreating, setIsCreating] = useState<'file' | 'folder' | null>(null);
   const [newName, setNewName] = useState('');
@@ -244,15 +242,6 @@ export function FileExplorer() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6"
-            onClick={clearFileSystem}
-            title="Clear all files"
-          >
-            <RefreshCw className="w-4 h-4 text-zinc-400" />
-          </Button>
         </div>
       </div>
 
