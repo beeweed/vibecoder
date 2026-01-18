@@ -29,10 +29,15 @@ export async function GET(request: NextRequest) {
 
     const modelsArray = Array.isArray(data) ? data : data.data || [];
 
+    const seenIds = new Set<string>();
     const models = modelsArray
       .filter((m: Record<string, unknown>) => {
         const capabilities = m.capabilities as Record<string, boolean> | undefined;
-        return capabilities?.completion_chat === true;
+        if (capabilities?.completion_chat !== true) return false;
+        const id = m.id as string;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
       })
       .map((m: Record<string, unknown>) => ({
         id: m.id,
