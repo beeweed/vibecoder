@@ -73,6 +73,7 @@ export function AIPanel() {
   const mistralApiKey = useSettingsStore((s) => s.mistralApiKey);
   const deepseekApiKey = useSettingsStore((s) => s.deepseekApiKey);
   const openaiApiKey = useSettingsStore((s) => s.openaiApiKey);
+  const anthropicApiKey = useSettingsStore((s) => s.anthropicApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
@@ -90,6 +91,7 @@ export function AIPanel() {
     if (provider === 'mistral') return mistralApiKey;
     if (provider === 'deepseek') return deepseekApiKey;
     if (provider === 'openai') return openaiApiKey;
+    if (provider === 'anthropic') return anthropicApiKey;
     return apiKey;
   };
   
@@ -158,6 +160,7 @@ export function AIPanel() {
         mistral: 'Mistral',
         deepseek: 'DeepSeek',
         openai: 'OpenAI',
+        anthropic: 'Anthropic',
         openrouter: 'OpenRouter',
       };
       const providerName = providerNames[provider] || 'OpenRouter';
@@ -482,7 +485,9 @@ export function AIPanel() {
                                   ? 'bg-sky-500 hover:bg-sky-600'
                                   : provider === 'openai'
                                     ? 'bg-green-500 hover:bg-green-600'
-                                    : 'bg-violet-500 hover:bg-violet-600'
+                                    : provider === 'anthropic'
+                                      ? 'bg-amber-500 hover:bg-amber-600'
+                                      : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}
