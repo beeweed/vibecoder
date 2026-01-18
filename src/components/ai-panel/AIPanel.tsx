@@ -360,8 +360,8 @@ export function AIPanel() {
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-4 py-4 w-full">
-        <div className="space-y-4 w-full overflow-hidden">
+      <ScrollArea className="flex-1 px-4 py-4">
+        <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 text-[#7a7a7c]">
               <Bot className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -378,8 +378,8 @@ export function AIPanel() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={cn(
-                'flex gap-2 w-full min-w-0',
-                message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                'flex gap-2',
+                message.role === 'user' ? 'justify-end' : 'justify-start'
               )}
             >
               {message.role === 'user' && (
@@ -390,22 +390,21 @@ export function AIPanel() {
 
               <div
                 className={cn(
-                  'min-w-0 flex-1 overflow-x-auto',
                   message.role === 'user'
                     ? 'rounded-lg px-3 py-2 max-w-[85%] bg-[#272729] text-[#dcdcde]'
-                    : 'text-[#b0b0b2]'
+                    : 'flex-1 text-[#b0b0b2]'
                 )}
               >
                 {message.role === 'assistant' ? (
-                  <div className="text-sm leading-relaxed break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                  <div className="text-sm leading-relaxed prose prose-invert max-w-none">
                     <ReactMarkdown
                       components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
                         ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                         ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                         li: ({ children }) => <li className="text-sm">{children}</li>,
                         code: ({ children }) => (
-                          <code className="bg-[#272729] px-1 py-0.5 rounded text-xs font-mono break-all">
+                          <code className="bg-[#272729] px-1 py-0.5 rounded text-xs font-mono">
                             {children}
                           </code>
                         ),
@@ -428,7 +427,7 @@ export function AIPanel() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 )}
               </div>
             </motion.div>
