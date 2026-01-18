@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
-type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral' | 'deepseek' | 'openai' | 'anthropic';
+type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral' | 'deepseek' | 'openai' | 'anthropic' | 'zai';
 
 function getApiEndpoint(provider: Provider, model?: string): string {
   if (provider === 'groq') {
@@ -30,6 +30,9 @@ function getApiEndpoint(provider: Provider, model?: string): string {
   }
   if (provider === 'openai') {
     return 'https://api.openai.com/v1/chat/completions';
+  }
+  if (provider === 'zai') {
+    return 'https://api.z.ai/api/paas/v4/chat/completions';
   }
   return 'https://openrouter.ai/api/v1/chat/completions';
 }

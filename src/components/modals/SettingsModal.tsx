@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot, Hexagon } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot, Hexagon, Atom } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,8 @@ export function SettingsModal() {
     setOpenaiApiKey,
     anthropicApiKey,
     setAnthropicApiKey,
+    zaiApiKey,
+    setZaiApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -62,6 +64,7 @@ export function SettingsModal() {
   const [showDeepseekApiKey, setShowDeepseekApiKey] = useState(false);
   const [showOpenaiApiKey, setShowOpenaiApiKey] = useState(false);
   const [showAnthropicApiKey, setShowAnthropicApiKey] = useState(false);
+  const [showZaiApiKey, setShowZaiApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -74,6 +77,7 @@ export function SettingsModal() {
   const [localDeepseekApiKey, setLocalDeepseekApiKey] = useState(deepseekApiKey || '');
   const [localOpenaiApiKey, setLocalOpenaiApiKey] = useState(openaiApiKey || '');
   const [localAnthropicApiKey, setLocalAnthropicApiKey] = useState(anthropicApiKey || '');
+  const [localZaiApiKey, setLocalZaiApiKey] = useState(zaiApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -123,6 +127,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalAnthropicApiKey(anthropicApiKey || '');
   }, [anthropicApiKey]);
+
+  useEffect(() => {
+    setLocalZaiApiKey(zaiApiKey || '');
+  }, [zaiApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -280,6 +288,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveZaiKey = async () => {
+    setZaiApiKey(localZaiApiKey || null);
+    if (localZaiApiKey && provider === 'zai') {
+      await fetchModels('zai', localZaiApiKey);
+      toast.success('Z.ai API key saved');
+    } else if (!localZaiApiKey) {
+      if (provider === 'zai') setAvailableModels([]);
+      toast.success('Z.ai API key cleared');
+    } else {
+      toast.success('Z.ai API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -295,6 +316,7 @@ export function SettingsModal() {
       else if (prov === 'deepseek') endpoint = '/api/models/deepseek';
       else if (prov === 'openai') endpoint = '/api/models/openai';
       else if (prov === 'anthropic') endpoint = '/api/models/anthropic';
+      else if (prov === 'zai') endpoint = '/api/models/zai';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -327,6 +349,7 @@ export function SettingsModal() {
     else if (newProvider === 'deepseek') key = deepseekApiKey;
     else if (newProvider === 'openai') key = openaiApiKey;
     else if (newProvider === 'anthropic') key = anthropicApiKey;
+    else if (newProvider === 'zai') key = zaiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -348,6 +371,7 @@ export function SettingsModal() {
     setLocalDeepseekApiKey('');
     setLocalOpenaiApiKey('');
     setLocalAnthropicApiKey('');
+    setLocalZaiApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -364,6 +388,7 @@ export function SettingsModal() {
     else if (provider === 'deepseek') key = deepseekApiKey;
     else if (provider === 'openai') key = openaiApiKey;
     else if (provider === 'anthropic') key = anthropicApiKey;
+    else if (provider === 'zai') key = zaiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -383,6 +408,7 @@ export function SettingsModal() {
     if (provider === 'deepseek') return deepseekApiKey;
     if (provider === 'openai') return openaiApiKey;
     if (provider === 'anthropic') return anthropicApiKey;
+    if (provider === 'zai') return zaiApiKey;
     return apiKey;
   };
 
@@ -558,6 +584,19 @@ export function SettingsModal() {
                 >
                   <Hexagon className="w-3.5 h-3.5" />
                   <span className="font-medium">Anthropic</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('zai')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'zai'
+                      ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Atom className="w-3.5 h-3.5" />
+                  <span className="font-medium">Z.ai</span>
                 </button>
               </div>
             </div>
@@ -1196,6 +1235,59 @@ export function SettingsModal() {
                   className="text-amber-400 hover:underline"
                 >
                   console.anthropic.com/settings/keys
+                </a>
+              </p>
+            </div>
+
+            {/* Z.ai API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Z.ai API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showZaiApiKey ? 'text' : 'password'}
+                    value={localZaiApiKey}
+                    onChange={(e) => setLocalZaiApiKey(e.target.value)}
+                    placeholder="..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowZaiApiKey(!showZaiApiKey)}
+                  >
+                    {showZaiApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveZaiKey}
+                  disabled={isLoadingModels}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isLoadingModels && provider === 'zai' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://z.ai/usercenter/apikeys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:underline"
+                >
+                  z.ai/usercenter/apikeys
                 </a>
               </p>
             </div>

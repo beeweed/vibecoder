@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { OpenRouterModel } from '@/types/openrouter';
 
-export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral' | 'deepseek' | 'openai' | 'anthropic';
+export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral' | 'deepseek' | 'openai' | 'anthropic' | 'zai';
 
 interface SettingsStore {
   provider: Provider;
@@ -18,6 +18,7 @@ interface SettingsStore {
   deepseekApiKey: string | null;
   openaiApiKey: string | null;
   anthropicApiKey: string | null;
+  zaiApiKey: string | null;
   selectedModel: string;
   temperature: number;
   maxTokens: number;
@@ -38,6 +39,7 @@ interface SettingsStore {
   setDeepseekApiKey: (key: string | null) => void;
   setOpenaiApiKey: (key: string | null) => void;
   setAnthropicApiKey: (key: string | null) => void;
+  setZaiApiKey: (key: string | null) => void;
   setSelectedModel: (modelId: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
@@ -88,6 +90,8 @@ const getDefaultModel = (provider: Provider): string => {
       return 'gpt-4o';
     case 'anthropic':
       return 'claude-sonnet-4-20250514';
+    case 'zai':
+      return 'glm-4.7';
     default:
       return 'anthropic/claude-sonnet-4';
   }
@@ -109,6 +113,7 @@ export const useSettingsStore = create<SettingsStore>()(
       deepseekApiKey: null,
       openaiApiKey: null,
       anthropicApiKey: null,
+      zaiApiKey: null,
       selectedModel: 'anthropic/claude-sonnet-4',
       temperature: 0.7,
       maxTokens: 8192,
@@ -131,6 +136,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setDeepseekApiKey: (key: string | null) => set({ deepseekApiKey: key }),
       setOpenaiApiKey: (key: string | null) => set({ openaiApiKey: key }),
       setAnthropicApiKey: (key: string | null) => set({ anthropicApiKey: key }),
+      setZaiApiKey: (key: string | null) => set({ zaiApiKey: key }),
       setSelectedModel: (modelId: string) => set({ selectedModel: modelId }),
       setTemperature: (temp: number) => set({ temperature: temp }),
       setMaxTokens: (tokens: number) => set({ maxTokens: tokens }),
@@ -153,6 +159,7 @@ export const useSettingsStore = create<SettingsStore>()(
           deepseekApiKey: null,
           openaiApiKey: null,
           anthropicApiKey: null,
+          zaiApiKey: null,
           selectedModel: 'anthropic/claude-sonnet-4',
           temperature: 0.7,
           maxTokens: 8192,
@@ -174,6 +181,7 @@ export const useSettingsStore = create<SettingsStore>()(
         else if (state.provider === 'deepseek') activeKey = state.deepseekApiKey;
         else if (state.provider === 'openai') activeKey = state.openaiApiKey;
         else if (state.provider === 'anthropic') activeKey = state.anthropicApiKey;
+        else if (state.provider === 'zai') activeKey = state.zaiApiKey;
         else activeKey = state.apiKey;
         return !!activeKey && !!state.selectedModel;
       },
@@ -191,6 +199,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state.provider === 'deepseek') return state.deepseekApiKey;
         if (state.provider === 'openai') return state.openaiApiKey;
         if (state.provider === 'anthropic') return state.anthropicApiKey;
+        if (state.provider === 'zai') return state.zaiApiKey;
         return state.apiKey;
       },
     }),
@@ -210,6 +219,7 @@ export const useSettingsStore = create<SettingsStore>()(
         deepseekApiKey: state.deepseekApiKey,
         openaiApiKey: state.openaiApiKey,
         anthropicApiKey: state.anthropicApiKey,
+        zaiApiKey: state.zaiApiKey,
         selectedModel: state.selectedModel,
         temperature: state.temperature,
         maxTokens: state.maxTokens,
