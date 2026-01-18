@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,8 @@ export function SettingsModal() {
     setFireworksApiKey,
     cerebrasApiKey,
     setCerebrasApiKey,
+    huggingfaceApiKey,
+    setHuggingfaceApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -44,12 +46,14 @@ export function SettingsModal() {
   const [showChutesApiKey, setShowChutesApiKey] = useState(false);
   const [showFireworksApiKey, setShowFireworksApiKey] = useState(false);
   const [showCerebrasApiKey, setShowCerebrasApiKey] = useState(false);
+  const [showHuggingfaceApiKey, setShowHuggingfaceApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
   const [localChutesApiKey, setLocalChutesApiKey] = useState(chutesApiKey || '');
   const [localFireworksApiKey, setLocalFireworksApiKey] = useState(fireworksApiKey || '');
   const [localCerebrasApiKey, setLocalCerebrasApiKey] = useState(cerebrasApiKey || '');
+  const [localHuggingfaceApiKey, setLocalHuggingfaceApiKey] = useState(huggingfaceApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -75,6 +79,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalCerebrasApiKey(cerebrasApiKey || '');
   }, [cerebrasApiKey]);
+
+  useEffect(() => {
+    setLocalHuggingfaceApiKey(huggingfaceApiKey || '');
+  }, [huggingfaceApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -154,6 +162,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveHuggingfaceKey = async () => {
+    setHuggingfaceApiKey(localHuggingfaceApiKey || null);
+    if (localHuggingfaceApiKey && provider === 'huggingface') {
+      await fetchModels('huggingface', localHuggingfaceApiKey);
+      toast.success('Hugging Face API key saved');
+    } else if (!localHuggingfaceApiKey) {
+      if (provider === 'huggingface') setAvailableModels([]);
+      toast.success('Hugging Face API key cleared');
+    } else {
+      toast.success('Hugging Face API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -163,6 +184,7 @@ export function SettingsModal() {
       else if (prov === 'chutes') endpoint = '/api/models/chutes';
       else if (prov === 'fireworks') endpoint = '/api/models/fireworks';
       else if (prov === 'cerebras') endpoint = '/api/models/cerebras';
+      else if (prov === 'huggingface') endpoint = '/api/models/huggingface';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -189,6 +211,7 @@ export function SettingsModal() {
     else if (newProvider === 'chutes') key = chutesApiKey;
     else if (newProvider === 'fireworks') key = fireworksApiKey;
     else if (newProvider === 'cerebras') key = cerebrasApiKey;
+    else if (newProvider === 'huggingface') key = huggingfaceApiKey;
     else key = apiKey;
     
     if (key) {
@@ -204,6 +227,7 @@ export function SettingsModal() {
     setLocalChutesApiKey('');
     setLocalFireworksApiKey('');
     setLocalCerebrasApiKey('');
+    setLocalHuggingfaceApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -214,6 +238,7 @@ export function SettingsModal() {
     else if (provider === 'chutes') key = chutesApiKey;
     else if (provider === 'fireworks') key = fireworksApiKey;
     else if (provider === 'cerebras') key = cerebrasApiKey;
+    else if (provider === 'huggingface') key = huggingfaceApiKey;
     else key = apiKey;
     
     if (key) {
@@ -227,6 +252,7 @@ export function SettingsModal() {
     if (provider === 'chutes') return chutesApiKey;
     if (provider === 'fireworks') return fireworksApiKey;
     if (provider === 'cerebras') return cerebrasApiKey;
+    if (provider === 'huggingface') return huggingfaceApiKey;
     return apiKey;
   };
 
@@ -324,6 +350,19 @@ export function SettingsModal() {
                 >
                   <Brain className="w-3.5 h-3.5" />
                   <span className="font-medium">Cerebras</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('huggingface')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'huggingface'
+                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  <span className="font-medium">HuggingFace</span>
                 </button>
               </div>
             </div>
@@ -644,6 +683,59 @@ export function SettingsModal() {
                   className="text-emerald-400 hover:underline"
                 >
                   cloud.cerebras.ai/api-keys
+                </a>
+              </p>
+            </div>
+
+            {/* Hugging Face API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Hugging Face API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showHuggingfaceApiKey ? 'text' : 'password'}
+                    value={localHuggingfaceApiKey}
+                    onChange={(e) => setLocalHuggingfaceApiKey(e.target.value)}
+                    placeholder="hf_..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowHuggingfaceApiKey(!showHuggingfaceApiKey)}
+                  >
+                    {showHuggingfaceApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveHuggingfaceKey}
+                  disabled={isLoadingModels}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {isLoadingModels && provider === 'huggingface' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://huggingface.co/settings/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-yellow-400 hover:underline"
+                >
+                  huggingface.co/settings/tokens
                 </a>
               </p>
             </div>

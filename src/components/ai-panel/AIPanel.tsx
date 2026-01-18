@@ -68,6 +68,7 @@ export function AIPanel() {
   const chutesApiKey = useSettingsStore((s) => s.chutesApiKey);
   const fireworksApiKey = useSettingsStore((s) => s.fireworksApiKey);
   const cerebrasApiKey = useSettingsStore((s) => s.cerebrasApiKey);
+  const huggingfaceApiKey = useSettingsStore((s) => s.huggingfaceApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
@@ -80,6 +81,7 @@ export function AIPanel() {
     if (provider === 'chutes') return chutesApiKey;
     if (provider === 'fireworks') return fireworksApiKey;
     if (provider === 'cerebras') return cerebrasApiKey;
+    if (provider === 'huggingface') return huggingfaceApiKey;
     return apiKey;
   };
   
@@ -143,6 +145,7 @@ export function AIPanel() {
         chutes: 'Chutes',
         fireworks: 'Fireworks',
         cerebras: 'Cerebras',
+        huggingface: 'Hugging Face',
         openrouter: 'OpenRouter',
       };
       const providerName = providerNames[provider] || 'OpenRouter';
@@ -457,7 +460,9 @@ export function AIPanel() {
                         ? 'bg-amber-500 hover:bg-amber-600'
                         : provider === 'cerebras'
                           ? 'bg-emerald-500 hover:bg-emerald-600'
-                          : 'bg-violet-500 hover:bg-violet-600'
+                          : provider === 'huggingface'
+                            ? 'bg-yellow-500 hover:bg-yellow-600'
+                            : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}
