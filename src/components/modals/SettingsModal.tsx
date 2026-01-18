@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,8 @@ export function SettingsModal() {
     setGeminiApiKey,
     mistralApiKey,
     setMistralApiKey,
+    deepseekApiKey,
+    setDeepseekApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -53,6 +55,7 @@ export function SettingsModal() {
   const [showHuggingfaceApiKey, setShowHuggingfaceApiKey] = useState(false);
   const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [showMistralApiKey, setShowMistralApiKey] = useState(false);
+  const [showDeepseekApiKey, setShowDeepseekApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -62,6 +65,7 @@ export function SettingsModal() {
   const [localHuggingfaceApiKey, setLocalHuggingfaceApiKey] = useState(huggingfaceApiKey || '');
   const [localGeminiApiKey, setLocalGeminiApiKey] = useState(geminiApiKey || '');
   const [localMistralApiKey, setLocalMistralApiKey] = useState(mistralApiKey || '');
+  const [localDeepseekApiKey, setLocalDeepseekApiKey] = useState(deepseekApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -99,6 +103,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalMistralApiKey(mistralApiKey || '');
   }, [mistralApiKey]);
+
+  useEffect(() => {
+    setLocalDeepseekApiKey(deepseekApiKey || '');
+  }, [deepseekApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -217,6 +225,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveDeepseekKey = async () => {
+    setDeepseekApiKey(localDeepseekApiKey || null);
+    if (localDeepseekApiKey && provider === 'deepseek') {
+      await fetchModels('deepseek', localDeepseekApiKey);
+      toast.success('DeepSeek API key saved');
+    } else if (!localDeepseekApiKey) {
+      if (provider === 'deepseek') setAvailableModels([]);
+      toast.success('DeepSeek API key cleared');
+    } else {
+      toast.success('DeepSeek API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -229,6 +250,7 @@ export function SettingsModal() {
       else if (prov === 'huggingface') endpoint = '/api/models/huggingface';
       else if (prov === 'gemini') endpoint = '/api/models/gemini';
       else if (prov === 'mistral') endpoint = '/api/models/mistral';
+      else if (prov === 'deepseek') endpoint = '/api/models/deepseek';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -258,6 +280,7 @@ export function SettingsModal() {
     else if (newProvider === 'huggingface') key = huggingfaceApiKey;
     else if (newProvider === 'gemini') key = geminiApiKey;
     else if (newProvider === 'mistral') key = mistralApiKey;
+    else if (newProvider === 'deepseek') key = deepseekApiKey;
     else key = apiKey;
     
     if (key) {
@@ -276,6 +299,7 @@ export function SettingsModal() {
     setLocalHuggingfaceApiKey('');
     setLocalGeminiApiKey('');
     setLocalMistralApiKey('');
+    setLocalDeepseekApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -289,6 +313,7 @@ export function SettingsModal() {
     else if (provider === 'huggingface') key = huggingfaceApiKey;
     else if (provider === 'gemini') key = geminiApiKey;
     else if (provider === 'mistral') key = mistralApiKey;
+    else if (provider === 'deepseek') key = deepseekApiKey;
     else key = apiKey;
     
     if (key) {
@@ -305,6 +330,7 @@ export function SettingsModal() {
     if (provider === 'huggingface') return huggingfaceApiKey;
     if (provider === 'gemini') return geminiApiKey;
     if (provider === 'mistral') return mistralApiKey;
+    if (provider === 'deepseek') return deepseekApiKey;
     return apiKey;
   };
 
@@ -441,6 +467,19 @@ export function SettingsModal() {
                 >
                   <Wind className="w-3.5 h-3.5" />
                   <span className="font-medium">Mistral</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('deepseek')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'deepseek'
+                      ? 'bg-sky-500/20 border-sky-500 text-sky-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Fish className="w-3.5 h-3.5" />
+                  <span className="font-medium">DeepSeek</span>
                 </button>
               </div>
             </div>
@@ -920,6 +959,59 @@ export function SettingsModal() {
                   className="text-orange-400 hover:underline"
                 >
                   console.mistral.ai/api-keys
+                </a>
+              </p>
+            </div>
+
+            {/* DeepSeek API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                DeepSeek API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showDeepseekApiKey ? 'text' : 'password'}
+                    value={localDeepseekApiKey}
+                    onChange={(e) => setLocalDeepseekApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowDeepseekApiKey(!showDeepseekApiKey)}
+                  >
+                    {showDeepseekApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveDeepseekKey}
+                  disabled={isLoadingModels}
+                  className="bg-sky-600 hover:bg-sky-700"
+                >
+                  {isLoadingModels && provider === 'deepseek' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://platform.deepseek.com/api_keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-400 hover:underline"
+                >
+                  platform.deepseek.com/api_keys
                 </a>
               </p>
             </div>
