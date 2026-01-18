@@ -67,6 +67,7 @@ export function AIPanel() {
   const cohereApiKey = useSettingsStore((s) => s.cohereApiKey);
   const chutesApiKey = useSettingsStore((s) => s.chutesApiKey);
   const fireworksApiKey = useSettingsStore((s) => s.fireworksApiKey);
+  const cerebrasApiKey = useSettingsStore((s) => s.cerebrasApiKey);
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const temperature = useSettingsStore((s) => s.temperature);
   const maxTokens = useSettingsStore((s) => s.maxTokens);
@@ -78,6 +79,7 @@ export function AIPanel() {
     if (provider === 'cohere') return cohereApiKey;
     if (provider === 'chutes') return chutesApiKey;
     if (provider === 'fireworks') return fireworksApiKey;
+    if (provider === 'cerebras') return cerebrasApiKey;
     return apiKey;
   };
   
@@ -140,6 +142,7 @@ export function AIPanel() {
         cohere: 'Cohere',
         chutes: 'Chutes',
         fireworks: 'Fireworks',
+        cerebras: 'Cerebras',
         openrouter: 'OpenRouter',
       };
       const providerName = providerNames[provider] || 'OpenRouter';
@@ -452,7 +455,9 @@ export function AIPanel() {
                       ? 'bg-cyan-500 hover:bg-cyan-600'
                       : provider === 'fireworks'
                         ? 'bg-amber-500 hover:bg-amber-600'
-                        : 'bg-violet-500 hover:bg-violet-600'
+                        : provider === 'cerebras'
+                          ? 'bg-emerald-500 hover:bg-emerald-600'
+                          : 'bg-violet-500 hover:bg-violet-600'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}
