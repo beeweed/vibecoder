@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Wind } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -20,6 +20,7 @@ export function Header() {
     cerebrasApiKey,
     huggingfaceApiKey,
     geminiApiKey,
+    mistralApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -38,6 +39,7 @@ export function Header() {
     if (provider === 'cerebras') return cerebrasApiKey;
     if (provider === 'huggingface') return huggingfaceApiKey;
     if (provider === 'gemini') return geminiApiKey;
+    if (provider === 'mistral') return mistralApiKey;
     return apiKey;
   };
   
@@ -66,6 +68,7 @@ export function Header() {
       else if (provider === 'cerebras') endpoint = '/api/models/cerebras';
       else if (provider === 'huggingface') endpoint = '/api/models/huggingface';
       else if (provider === 'gemini') endpoint = '/api/models/gemini';
+      else if (provider === 'mistral') endpoint = '/api/models/mistral';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
@@ -150,11 +153,13 @@ export function Header() {
             <Bot className="w-3.5 h-3.5 text-yellow-400" />
           ) : provider === 'gemini' ? (
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+          ) : provider === 'mistral' ? (
+            <Wind className="w-3.5 h-3.5 text-orange-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : provider === 'mistral' ? 'Mistral' : 'OpenRouter'}
           </span>
         </div>
 

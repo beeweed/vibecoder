@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { OpenRouterModel } from '@/types/openrouter';
 
-export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini';
+export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral';
 
 interface SettingsStore {
   provider: Provider;
@@ -14,6 +14,7 @@ interface SettingsStore {
   cerebrasApiKey: string | null;
   huggingfaceApiKey: string | null;
   geminiApiKey: string | null;
+  mistralApiKey: string | null;
   selectedModel: string;
   temperature: number;
   maxTokens: number;
@@ -30,6 +31,7 @@ interface SettingsStore {
   setCerebrasApiKey: (key: string | null) => void;
   setHuggingfaceApiKey: (key: string | null) => void;
   setGeminiApiKey: (key: string | null) => void;
+  setMistralApiKey: (key: string | null) => void;
   setSelectedModel: (modelId: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
@@ -72,6 +74,8 @@ const getDefaultModel = (provider: Provider): string => {
       return 'Qwen/Qwen3-Coder-480B-A35B-Instruct';
     case 'gemini':
       return 'gemini-2.5-flash';
+    case 'mistral':
+      return 'mistral-large-latest';
     default:
       return 'anthropic/claude-sonnet-4';
   }
@@ -89,6 +93,7 @@ export const useSettingsStore = create<SettingsStore>()(
       cerebrasApiKey: null,
       huggingfaceApiKey: null,
       geminiApiKey: null,
+      mistralApiKey: null,
       selectedModel: 'anthropic/claude-sonnet-4',
       temperature: 0.7,
       maxTokens: 8192,
@@ -107,6 +112,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCerebrasApiKey: (key: string | null) => set({ cerebrasApiKey: key }),
       setHuggingfaceApiKey: (key: string | null) => set({ huggingfaceApiKey: key }),
       setGeminiApiKey: (key: string | null) => set({ geminiApiKey: key }),
+      setMistralApiKey: (key: string | null) => set({ mistralApiKey: key }),
       setSelectedModel: (modelId: string) => set({ selectedModel: modelId }),
       setTemperature: (temp: number) => set({ temperature: temp }),
       setMaxTokens: (tokens: number) => set({ maxTokens: tokens }),
@@ -125,6 +131,7 @@ export const useSettingsStore = create<SettingsStore>()(
           cerebrasApiKey: null,
           huggingfaceApiKey: null,
           geminiApiKey: null,
+          mistralApiKey: null,
           selectedModel: 'anthropic/claude-sonnet-4',
           temperature: 0.7,
           maxTokens: 8192,
@@ -142,6 +149,7 @@ export const useSettingsStore = create<SettingsStore>()(
         else if (state.provider === 'cerebras') activeKey = state.cerebrasApiKey;
         else if (state.provider === 'huggingface') activeKey = state.huggingfaceApiKey;
         else if (state.provider === 'gemini') activeKey = state.geminiApiKey;
+        else if (state.provider === 'mistral') activeKey = state.mistralApiKey;
         else activeKey = state.apiKey;
         return !!activeKey && !!state.selectedModel;
       },
@@ -155,6 +163,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state.provider === 'cerebras') return state.cerebrasApiKey;
         if (state.provider === 'huggingface') return state.huggingfaceApiKey;
         if (state.provider === 'gemini') return state.geminiApiKey;
+        if (state.provider === 'mistral') return state.mistralApiKey;
         return state.apiKey;
       },
     }),
@@ -170,6 +179,7 @@ export const useSettingsStore = create<SettingsStore>()(
         cerebrasApiKey: state.cerebrasApiKey,
         huggingfaceApiKey: state.huggingfaceApiKey,
         geminiApiKey: state.geminiApiKey,
+        mistralApiKey: state.mistralApiKey,
         selectedModel: state.selectedModel,
         temperature: state.temperature,
         maxTokens: state.maxTokens,

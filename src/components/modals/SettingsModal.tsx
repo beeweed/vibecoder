@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,8 @@ export function SettingsModal() {
     setHuggingfaceApiKey,
     geminiApiKey,
     setGeminiApiKey,
+    mistralApiKey,
+    setMistralApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -50,6 +52,7 @@ export function SettingsModal() {
   const [showCerebrasApiKey, setShowCerebrasApiKey] = useState(false);
   const [showHuggingfaceApiKey, setShowHuggingfaceApiKey] = useState(false);
   const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
+  const [showMistralApiKey, setShowMistralApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -58,6 +61,7 @@ export function SettingsModal() {
   const [localCerebrasApiKey, setLocalCerebrasApiKey] = useState(cerebrasApiKey || '');
   const [localHuggingfaceApiKey, setLocalHuggingfaceApiKey] = useState(huggingfaceApiKey || '');
   const [localGeminiApiKey, setLocalGeminiApiKey] = useState(geminiApiKey || '');
+  const [localMistralApiKey, setLocalMistralApiKey] = useState(mistralApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -91,6 +95,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalGeminiApiKey(geminiApiKey || '');
   }, [geminiApiKey]);
+
+  useEffect(() => {
+    setLocalMistralApiKey(mistralApiKey || '');
+  }, [mistralApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -196,6 +204,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveMistralKey = async () => {
+    setMistralApiKey(localMistralApiKey || null);
+    if (localMistralApiKey && provider === 'mistral') {
+      await fetchModels('mistral', localMistralApiKey);
+      toast.success('Mistral API key saved');
+    } else if (!localMistralApiKey) {
+      if (provider === 'mistral') setAvailableModels([]);
+      toast.success('Mistral API key cleared');
+    } else {
+      toast.success('Mistral API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -207,6 +228,7 @@ export function SettingsModal() {
       else if (prov === 'cerebras') endpoint = '/api/models/cerebras';
       else if (prov === 'huggingface') endpoint = '/api/models/huggingface';
       else if (prov === 'gemini') endpoint = '/api/models/gemini';
+      else if (prov === 'mistral') endpoint = '/api/models/mistral';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -235,6 +257,7 @@ export function SettingsModal() {
     else if (newProvider === 'cerebras') key = cerebrasApiKey;
     else if (newProvider === 'huggingface') key = huggingfaceApiKey;
     else if (newProvider === 'gemini') key = geminiApiKey;
+    else if (newProvider === 'mistral') key = mistralApiKey;
     else key = apiKey;
     
     if (key) {
@@ -252,6 +275,7 @@ export function SettingsModal() {
     setLocalCerebrasApiKey('');
     setLocalHuggingfaceApiKey('');
     setLocalGeminiApiKey('');
+    setLocalMistralApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -264,6 +288,7 @@ export function SettingsModal() {
     else if (provider === 'cerebras') key = cerebrasApiKey;
     else if (provider === 'huggingface') key = huggingfaceApiKey;
     else if (provider === 'gemini') key = geminiApiKey;
+    else if (provider === 'mistral') key = mistralApiKey;
     else key = apiKey;
     
     if (key) {
@@ -279,6 +304,7 @@ export function SettingsModal() {
     if (provider === 'cerebras') return cerebrasApiKey;
     if (provider === 'huggingface') return huggingfaceApiKey;
     if (provider === 'gemini') return geminiApiKey;
+    if (provider === 'mistral') return mistralApiKey;
     return apiKey;
   };
 
@@ -402,6 +428,19 @@ export function SettingsModal() {
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span className="font-medium">Gemini</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('mistral')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'mistral'
+                      ? 'bg-orange-500/20 border-orange-400 text-orange-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Wind className="w-3.5 h-3.5" />
+                  <span className="font-medium">Mistral</span>
                 </button>
               </div>
             </div>
@@ -828,6 +867,59 @@ export function SettingsModal() {
                   className="text-blue-400 hover:underline"
                 >
                   aistudio.google.com/apikey
+                </a>
+              </p>
+            </div>
+
+            {/* Mistral API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Mistral API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showMistralApiKey ? 'text' : 'password'}
+                    value={localMistralApiKey}
+                    onChange={(e) => setLocalMistralApiKey(e.target.value)}
+                    placeholder="..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowMistralApiKey(!showMistralApiKey)}
+                  >
+                    {showMistralApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveMistralKey}
+                  disabled={isLoadingModels}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {isLoadingModels && provider === 'mistral' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://console.mistral.ai/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-400 hover:underline"
+                >
+                  console.mistral.ai/api-keys
                 </a>
               </p>
             </div>

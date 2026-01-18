@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
-type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini';
+type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral';
 
 function getApiEndpoint(provider: Provider, model?: string): string {
   if (provider === 'groq') {
@@ -21,6 +21,9 @@ function getApiEndpoint(provider: Provider, model?: string): string {
   }
   if (provider === 'huggingface') {
     return 'https://router.huggingface.co/v1/chat/completions';
+  }
+  if (provider === 'mistral') {
+    return 'https://api.mistral.ai/v1/chat/completions';
   }
   return 'https://openrouter.ai/api/v1/chat/completions';
 }
