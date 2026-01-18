@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot, Hexagon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,8 @@ export function SettingsModal() {
     setDeepseekApiKey,
     openaiApiKey,
     setOpenaiApiKey,
+    anthropicApiKey,
+    setAnthropicApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -59,6 +61,7 @@ export function SettingsModal() {
   const [showMistralApiKey, setShowMistralApiKey] = useState(false);
   const [showDeepseekApiKey, setShowDeepseekApiKey] = useState(false);
   const [showOpenaiApiKey, setShowOpenaiApiKey] = useState(false);
+  const [showAnthropicApiKey, setShowAnthropicApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -70,6 +73,7 @@ export function SettingsModal() {
   const [localMistralApiKey, setLocalMistralApiKey] = useState(mistralApiKey || '');
   const [localDeepseekApiKey, setLocalDeepseekApiKey] = useState(deepseekApiKey || '');
   const [localOpenaiApiKey, setLocalOpenaiApiKey] = useState(openaiApiKey || '');
+  const [localAnthropicApiKey, setLocalAnthropicApiKey] = useState(anthropicApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -115,6 +119,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalOpenaiApiKey(openaiApiKey || '');
   }, [openaiApiKey]);
+
+  useEffect(() => {
+    setLocalAnthropicApiKey(anthropicApiKey || '');
+  }, [anthropicApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -259,6 +267,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveAnthropicKey = async () => {
+    setAnthropicApiKey(localAnthropicApiKey || null);
+    if (localAnthropicApiKey && provider === 'anthropic') {
+      await fetchModels('anthropic', localAnthropicApiKey);
+      toast.success('Anthropic API key saved');
+    } else if (!localAnthropicApiKey) {
+      if (provider === 'anthropic') setAvailableModels([]);
+      toast.success('Anthropic API key cleared');
+    } else {
+      toast.success('Anthropic API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -273,6 +294,7 @@ export function SettingsModal() {
       else if (prov === 'mistral') endpoint = '/api/models/mistral';
       else if (prov === 'deepseek') endpoint = '/api/models/deepseek';
       else if (prov === 'openai') endpoint = '/api/models/openai';
+      else if (prov === 'anthropic') endpoint = '/api/models/anthropic';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -304,6 +326,7 @@ export function SettingsModal() {
     else if (newProvider === 'mistral') key = mistralApiKey;
     else if (newProvider === 'deepseek') key = deepseekApiKey;
     else if (newProvider === 'openai') key = openaiApiKey;
+    else if (newProvider === 'anthropic') key = anthropicApiKey;
     else key = apiKey;
     
     if (key) {
@@ -324,6 +347,7 @@ export function SettingsModal() {
     setLocalMistralApiKey('');
     setLocalDeepseekApiKey('');
     setLocalOpenaiApiKey('');
+    setLocalAnthropicApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -339,6 +363,7 @@ export function SettingsModal() {
     else if (provider === 'mistral') key = mistralApiKey;
     else if (provider === 'deepseek') key = deepseekApiKey;
     else if (provider === 'openai') key = openaiApiKey;
+    else if (provider === 'anthropic') key = anthropicApiKey;
     else key = apiKey;
     
     if (key) {
@@ -357,6 +382,7 @@ export function SettingsModal() {
     if (provider === 'mistral') return mistralApiKey;
     if (provider === 'deepseek') return deepseekApiKey;
     if (provider === 'openai') return openaiApiKey;
+    if (provider === 'anthropic') return anthropicApiKey;
     return apiKey;
   };
 
@@ -519,6 +545,19 @@ export function SettingsModal() {
                 >
                   <CircleDot className="w-3.5 h-3.5" />
                   <span className="font-medium">OpenAI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('anthropic')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'anthropic'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Hexagon className="w-3.5 h-3.5" />
+                  <span className="font-medium">Anthropic</span>
                 </button>
               </div>
             </div>
@@ -1104,6 +1143,59 @@ export function SettingsModal() {
                   className="text-green-400 hover:underline"
                 >
                   platform.openai.com/api-keys
+                </a>
+              </p>
+            </div>
+
+            {/* Anthropic API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Anthropic API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showAnthropicApiKey ? 'text' : 'password'}
+                    value={localAnthropicApiKey}
+                    onChange={(e) => setLocalAnthropicApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowAnthropicApiKey(!showAnthropicApiKey)}
+                  >
+                    {showAnthropicApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveAnthropicKey}
+                  disabled={isLoadingModels}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {isLoadingModels && provider === 'anthropic' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://console.anthropic.com/settings/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline"
+                >
+                  console.anthropic.com/settings/keys
                 </a>
               </p>
             </div>

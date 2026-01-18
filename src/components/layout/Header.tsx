@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Wind, Fish, CircleDot } from 'lucide-react';
+import { Settings, Download, Sparkles, Loader2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Wind, Fish, CircleDot, Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelSelector } from '@/components/layout/ModelSelector';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -23,6 +23,7 @@ export function Header() {
     mistralApiKey,
     deepseekApiKey,
     openaiApiKey,
+    anthropicApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -44,6 +45,7 @@ export function Header() {
     if (provider === 'mistral') return mistralApiKey;
     if (provider === 'deepseek') return deepseekApiKey;
     if (provider === 'openai') return openaiApiKey;
+    if (provider === 'anthropic') return anthropicApiKey;
     return apiKey;
   };
   
@@ -75,6 +77,7 @@ export function Header() {
       else if (provider === 'mistral') endpoint = '/api/models/mistral';
       else if (provider === 'deepseek') endpoint = '/api/models/deepseek';
       else if (provider === 'openai') endpoint = '/api/models/openai';
+      else if (provider === 'anthropic') endpoint = '/api/models/anthropic';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
@@ -165,11 +168,13 @@ export function Header() {
             <Fish className="w-3.5 h-3.5 text-sky-400" />
           ) : provider === 'openai' ? (
             <CircleDot className="w-3.5 h-3.5 text-green-400" />
+          ) : provider === 'anthropic' ? (
+            <Hexagon className="w-3.5 h-3.5 text-amber-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : provider === 'mistral' ? 'Mistral' : provider === 'deepseek' ? 'DeepSeek' : provider === 'openai' ? 'OpenAI' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : provider === 'mistral' ? 'Mistral' : provider === 'deepseek' ? 'DeepSeek' : provider === 'openai' ? 'OpenAI' : provider === 'anthropic' ? 'Anthropic' : 'OpenRouter'}
           </span>
         </div>
 
