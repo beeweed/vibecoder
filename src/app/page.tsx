@@ -44,7 +44,7 @@ export default function Home() {
 
   return (
     <div 
-      className="flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden"
+      className="flex flex-col bg-[#161618] text-[#dcdcde] overflow-hidden"
       style={{ 
         height: vh ? `${vh}px` : '100dvh',
         minHeight: vh ? `${vh}px` : '100dvh'
@@ -54,11 +54,11 @@ export default function Home() {
       
       {/* Desktop Layout */}
       <main className="hidden md:flex flex-1 overflow-hidden">
-        <div className="w-[350px] min-w-[280px] border-r border-zinc-800 flex-shrink-0">
+        <div className="w-[350px] min-w-[280px] border-r border-[#272729] flex-shrink-0">
           <AIPanel />
         </div>
         
-        <div className="w-[220px] min-w-[180px] border-r border-zinc-800 flex-shrink-0">
+        <div className="w-[220px] min-w-[180px] border-r border-[#272729] flex-shrink-0">
           <FileExplorer />
         </div>
         

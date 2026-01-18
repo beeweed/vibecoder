@@ -136,13 +136,13 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 min-h-[56px] border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-3 md:px-4 flex-shrink-0 relative z-50">
+    <header className="h-14 min-h-[56px] border-b border-[#272729] bg-[#161618] flex items-center justify-between px-3 md:px-4 flex-shrink-0 relative z-50">
       <div className="flex items-center gap-2 md:gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#272729] flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-[#dcdcde]" />
           </div>
-          <span className="text-base md:text-lg font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent whitespace-nowrap">
+          <span className="text-base md:text-lg font-bold text-[#dcdcde] whitespace-nowrap">
             VibeCoder
           </span>
         </div>
@@ -150,35 +150,35 @@ export function Header() {
 
       <div className="flex items-center gap-2 md:gap-3">
         {/* Provider indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700">
+        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#272729] border border-[#3a3a3c]">
           {provider === 'groq' ? (
-            <Zap className="w-3.5 h-3.5 text-orange-400" />
+            <Zap className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'cohere' ? (
-            <MessageSquare className="w-3.5 h-3.5 text-red-400" />
+            <MessageSquare className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'chutes' ? (
-            <Rocket className="w-3.5 h-3.5 text-cyan-400" />
+            <Rocket className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'fireworks' ? (
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <Flame className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'cerebras' ? (
-            <Brain className="w-3.5 h-3.5 text-emerald-400" />
+            <Brain className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'huggingface' ? (
-            <Bot className="w-3.5 h-3.5 text-yellow-400" />
+            <Bot className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'gemini' ? (
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <Sparkles className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'mistral' ? (
-            <Wind className="w-3.5 h-3.5 text-orange-400" />
+            <Wind className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'deepseek' ? (
-            <Fish className="w-3.5 h-3.5 text-sky-400" />
+            <Fish className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'openai' ? (
-            <CircleDot className="w-3.5 h-3.5 text-green-400" />
+            <CircleDot className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'anthropic' ? (
-            <Hexagon className="w-3.5 h-3.5 text-amber-400" />
+            <Hexagon className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : provider === 'zai' ? (
-            <Atom className="w-3.5 h-3.5 text-indigo-400" />
+            <Atom className="w-3.5 h-3.5 text-[#dcdcde]" />
           ) : (
-            <Globe className="w-3.5 h-3.5 text-violet-400" />
+            <Globe className="w-3.5 h-3.5 text-[#dcdcde]" />
           )}
-          <span className="text-xs font-medium text-zinc-400">
+          <span className="text-xs font-medium text-[#9a9a9c]">
             {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : provider === 'mistral' ? 'Mistral' : provider === 'deepseek' ? 'DeepSeek' : provider === 'openai' ? 'OpenAI' : provider === 'anthropic' ? 'Anthropic' : provider === 'zai' ? 'Z.ai' : 'OpenRouter'}
           </span>
         </div>
@@ -198,7 +198,7 @@ export function Header() {
           size="icon"
           onClick={handleExport}
           disabled={isExporting}
-          className="w-9 h-9 md:w-10 md:h-10 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 flex-shrink-0"
+          className="w-9 h-9 md:w-10 md:h-10 bg-[#272729] border-[#3a3a3c] hover:bg-[#3a3a3c] text-[#dcdcde] flex-shrink-0"
         >
           {isExporting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -211,7 +211,7 @@ export function Header() {
           variant="outline"
           size="icon"
           onClick={() => setSettingsOpen(true)}
-          className="w-9 h-9 md:w-10 md:h-10 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 flex-shrink-0"
+          className="w-9 h-9 md:w-10 md:h-10 bg-[#272729] border-[#3a3a3c] hover:bg-[#3a3a3c] text-[#dcdcde] flex-shrink-0"
         >
           <Settings className="w-4 h-4" />
         </Button>

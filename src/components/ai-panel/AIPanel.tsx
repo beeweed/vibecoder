@@ -37,11 +37,11 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
 const statusConfig = {
-  idle: { icon: Sparkles, label: 'Ready', color: 'text-zinc-400' },
-  thinking: { icon: Brain, label: 'Thinking...', color: 'text-yellow-400' },
-  writing: { icon: Pencil, label: 'Writing code...', color: 'text-green-400' },
-  refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-blue-400' },
-  completed: { icon: CheckCircle2, label: 'Completed', color: 'text-violet-400' },
+  idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
+  thinking: { icon: Brain, label: 'Thinking...', color: 'text-[#dcdcde]' },
+  writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
+  refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
+  completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
   error: { icon: AlertCircle, label: 'Error', color: 'text-red-400' },
 };
 
@@ -303,16 +303,16 @@ export function AIPanel() {
   const StatusIcon = statusConfig[status].icon;
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950">
-      <div className="px-4 py-3 border-b border-zinc-800">
+    <div className="h-full flex flex-col bg-[#161618]">
+      <div className="px-4 py-3 border-b border-[#272729]">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-[#9a9a9c] uppercase tracking-wider">
             AI Agent
           </span>
           <Badge
             variant="outline"
             className={cn(
-              'text-xs border-zinc-700',
+              'text-xs border-[#3a3a3c]',
               statusConfig[status].color
             )}
           >
@@ -327,7 +327,7 @@ export function AIPanel() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-2 text-sm text-green-400"
+              className="flex items-center gap-2 text-sm text-[#dcdcde]"
             >
               <FileCode className="w-4 h-4" />
               <span className="truncate">{currentFile}</span>
@@ -338,23 +338,23 @@ export function AIPanel() {
       </div>
 
       {activityLog.length > 0 && (
-        <div className="px-4 py-2 border-b border-zinc-800 max-h-24 overflow-y-auto">
-          <span className="text-xs text-zinc-500 mb-1 block">Recent Activity</span>
+        <div className="px-4 py-2 border-b border-[#272729] max-h-24 overflow-y-auto">
+          <span className="text-xs text-[#7a7a7c] mb-1 block">Recent Activity</span>
           {activityLog.slice(0, 5).map((log) => (
             <div
               key={log.id}
-              className="text-xs flex items-center gap-2 py-0.5 text-zinc-400"
+              className="text-xs flex items-center gap-2 py-0.5 text-[#9a9a9c]"
             >
               <span
                 className={cn(
                   'w-1.5 h-1.5 rounded-full',
-                  log.action === 'created' && 'bg-green-400',
-                  log.action === 'updated' && 'bg-yellow-400',
+                  log.action === 'created' && 'bg-[#dcdcde]',
+                  log.action === 'updated' && 'bg-[#9a9a9c]',
                   log.action === 'deleted' && 'bg-red-400'
                 )}
               />
               <span className="capitalize">{log.action}</span>
-              <span className="truncate text-zinc-500">{log.filePath}</span>
+              <span className="truncate text-[#7a7a7c]">{log.filePath}</span>
             </div>
           ))}
         </div>
@@ -363,7 +363,7 @@ export function AIPanel() {
       <ScrollArea className="flex-1 px-4 py-4 w-full">
         <div className="space-y-4 w-full overflow-hidden">
           {messages.length === 0 && (
-            <div className="text-center py-12 text-zinc-500">
+            <div className="text-center py-12 text-[#7a7a7c]">
               <Bot className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">Start coding with AI</p>
               <p className="text-sm mt-1">
@@ -386,8 +386,8 @@ export function AIPanel() {
                 className={cn(
                   'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
                   message.role === 'user'
-                    ? 'bg-violet-500/20 text-violet-400'
-                    : 'bg-zinc-800 text-zinc-400'
+                    ? 'bg-[#272729] text-[#dcdcde]'
+                    : 'bg-[#272729] text-[#9a9a9c]'
                 )}
               >
                 {message.role === 'user' ? (
@@ -401,8 +401,8 @@ export function AIPanel() {
                 className={cn(
                   'rounded-lg px-3 py-2 min-w-0 flex-1 max-w-[85%] overflow-x-auto',
                   message.role === 'user'
-                    ? 'bg-violet-500/20 text-zinc-100'
-                    : 'bg-zinc-900 text-zinc-300'
+                    ? 'bg-[#272729] text-[#dcdcde]'
+                    : 'bg-[#1e1e20] text-[#b0b0b2]'
                 )}
               >
                 {message.role === 'assistant' ? (
@@ -414,26 +414,26 @@ export function AIPanel() {
                         ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                         li: ({ children }) => <li className="text-sm">{children}</li>,
                         code: ({ children }) => (
-                          <code className="bg-zinc-800 px-1 py-0.5 rounded text-xs font-mono break-all">
+                          <code className="bg-[#272729] px-1 py-0.5 rounded text-xs font-mono break-all">
                             {children}
                           </code>
                         ),
                         pre: ({ children }) => (
-                          <pre className="bg-zinc-800 p-2 rounded text-xs overflow-x-auto my-2">
+                          <pre className="bg-[#272729] p-2 rounded text-xs overflow-x-auto my-2">
                             {children}
                           </pre>
                         ),
-                        strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                        strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
                         em: ({ children }) => <em className="italic">{children}</em>,
-                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 text-zinc-100">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 text-zinc-100">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 text-zinc-100">{children}</h3>,
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 text-[#dcdcde]">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 text-[#dcdcde]">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 text-[#dcdcde]">{children}</h3>,
                       }}
                     >
                       {message.content || (message.isStreaming ? '...' : '')}
                     </ReactMarkdown>
                     {message.isStreaming && (
-                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-violet-400 animate-pulse align-middle" />
+                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
                     )}
                   </div>
                 ) : (
@@ -446,7 +446,7 @@ export function AIPanel() {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-[#272729]">
         <div className="relative">
           <Textarea
             ref={inputRef}
@@ -460,39 +460,15 @@ export function AIPanel() {
             }
             disabled={!activeApiKey || isGenerating}
             rows={3}
-            className="pr-12 resize-none bg-zinc-900 border-zinc-700 focus:border-violet-500"
+            className="pr-12 resize-none bg-[#272729] border-[#3a3a3c] focus:border-[#dcdcde] text-[#dcdcde] placeholder:text-[#7a7a7c]"
           />
           <Button
             size="icon"
             className={cn(
               'absolute right-2 bottom-2',
               isGenerating
-                ? 'bg-red-500 hover:bg-red-600'
-                : provider === 'groq' 
-                  ? 'bg-orange-500 hover:bg-orange-600'
-                  : provider === 'cohere'
-                    ? 'bg-red-500 hover:bg-red-600'
-                    : provider === 'chutes'
-                      ? 'bg-cyan-500 hover:bg-cyan-600'
-                      : provider === 'fireworks'
-                        ? 'bg-amber-500 hover:bg-amber-600'
-                        : provider === 'cerebras'
-                          ? 'bg-emerald-500 hover:bg-emerald-600'
-                          : provider === 'huggingface'
-                            ? 'bg-yellow-500 hover:bg-yellow-600'
-                            : provider === 'gemini'
-                              ? 'bg-blue-500 hover:bg-blue-600'
-                              : provider === 'mistral'
-                                ? 'bg-orange-500 hover:bg-orange-600'
-                                : provider === 'deepseek'
-                                  ? 'bg-sky-500 hover:bg-sky-600'
-                                  : provider === 'openai'
-                                    ? 'bg-green-500 hover:bg-green-600'
-                                    : provider === 'anthropic'
-                                      ? 'bg-amber-500 hover:bg-amber-600'
-                                      : provider === 'zai'
-                                        ? 'bg-indigo-500 hover:bg-indigo-600'
-                                        : 'bg-violet-500 hover:bg-violet-600'
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]'
             )}
             onClick={isGenerating ? cancelGeneration : handleSubmit}
             disabled={!activeApiKey || (!isGenerating && !input.trim())}
@@ -504,7 +480,7 @@ export function AIPanel() {
             )}
           </Button>
         </div>
-        <p className="text-xs text-zinc-500 mt-2">
+        <p className="text-xs text-[#7a7a7c] mt-2">
           Press Enter to send, Shift+Enter for new line
         </p>
       </div>

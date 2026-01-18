@@ -96,7 +96,7 @@ export function EditorPanel() {
 
   if (tabs.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-zinc-950 text-zinc-500">
+      <div className="h-full flex flex-col items-center justify-center bg-[#161618] text-[#7a7a7c]">
         <Code2 className="w-16 h-16 mb-4 opacity-30" />
         <p className="text-lg font-medium">No file open</p>
         <p className="text-sm mt-1">Select a file from the explorer or ask AI to create one</p>
@@ -105,17 +105,17 @@ export function EditorPanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950">
-      <ScrollArea className="border-b border-zinc-800">
+    <div className="h-full flex flex-col bg-[#161618]">
+      <ScrollArea className="border-b border-[#272729]">
         <div className="flex">
           {tabs.map((tab) => (
             <div
               key={tab.id}
               className={cn(
-                'group flex items-center gap-2 px-4 py-2 cursor-pointer border-r border-zinc-800 transition-colors',
+                'group flex items-center gap-2 px-4 py-2 cursor-pointer border-r border-[#272729] transition-colors',
                 activeTabId === tab.id
-                  ? 'bg-zinc-900 text-zinc-100'
-                  : 'bg-zinc-950 text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-300'
+                  ? 'bg-[#272729] text-[#dcdcde]'
+                  : 'bg-[#161618] text-[#7a7a7c] hover:bg-[#1e1e20] hover:text-[#b0b0b2]'
               )}
               onClick={() => setActiveTab(tab.id)}
             >
@@ -123,7 +123,7 @@ export function EditorPanel() {
                 {tab.fileName}
               </span>
               {tab.isModified && (
-                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                <span className="w-2 h-2 rounded-full bg-[#9a9a9c]" />
               )}
               <Button
                 variant="ghost"
@@ -171,7 +171,7 @@ export function EditorPanel() {
         )}
       </div>
 
-      <div className="h-6 border-t border-zinc-800 flex items-center justify-between px-4 text-xs text-zinc-500 bg-zinc-900">
+      <div className="h-6 border-t border-[#272729] flex items-center justify-between px-4 text-xs text-[#7a7a7c] bg-[#1e1e20]">
         <span>{activeTab ? getLanguage(activeTab.fileName) : ''}</span>
         <span>
           Ln{' '}

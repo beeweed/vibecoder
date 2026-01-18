@@ -75,14 +75,14 @@ function FileNode({ node, depth }: FileNodeProps) {
         animate={{ opacity: 1, x: 0 }}
         className={cn(
           'group flex items-center gap-1 py-1 px-2 cursor-pointer rounded-md transition-colors',
-          'hover:bg-zinc-800/50',
-          isCurrentFile && 'bg-violet-500/20 ring-1 ring-violet-500/40'
+          'hover:bg-[#272729]/50',
+          isCurrentFile && 'bg-[#272729] ring-1 ring-[#3a3a3c]'
         )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={handleClick}
       >
         {node.type === 'folder' && (
-          <span className="w-4 h-4 flex items-center justify-center text-zinc-500">
+          <span className="w-4 h-4 flex items-center justify-center text-[#7a7a7c]">
             {node.expanded ? (
               <ChevronDown className="w-3 h-3" />
             ) : (
@@ -94,9 +94,9 @@ function FileNode({ node, depth }: FileNodeProps) {
         <Icon className="w-4 h-4 flex-shrink-0" style={{ color: iconColor }} />
         <span
           className={cn(
-            'text-sm truncate flex-1',
-            isModified && 'text-yellow-400',
-            isCreated && 'text-green-400'
+            'text-sm truncate flex-1 text-[#b0b0b2]',
+            isModified && 'text-[#dcdcde]',
+            isCreated && 'text-[#dcdcde]'
           )}
         >
           {node.name}
@@ -105,7 +105,7 @@ function FileNode({ node, depth }: FileNodeProps) {
           <span
             className={cn(
               'w-2 h-2 rounded-full flex-shrink-0',
-              isModified ? 'bg-yellow-400' : 'bg-green-400'
+              isModified ? 'bg-[#9a9a9c]' : 'bg-[#dcdcde]'
             )}
           />
         )}
@@ -115,7 +115,7 @@ function FileNode({ node, depth }: FileNodeProps) {
           className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleDelete}
         >
-          <Trash2 className="w-3 h-3 text-zinc-500 hover:text-red-400" />
+          <Trash2 className="w-3 h-3 text-[#7a7a7c] hover:text-red-400" />
         </Button>
       </motion.div>
 
@@ -213,29 +213,29 @@ export function FileExplorer() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+    <div className="h-full flex flex-col bg-[#161618]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#272729]">
+        <span className="text-xs font-semibold text-[#9a9a9c] uppercase tracking-wider">
           Explorer
         </span>
         <div className="flex items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="w-6 h-6">
-                <Plus className="w-4 h-4 text-zinc-400" />
+                <Plus className="w-4 h-4 text-[#9a9a9c]" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end" className="bg-[#272729] border-[#3a3a3c]">
               <DropdownMenuItem
                 onClick={() => setIsCreating('file')}
-                className="focus:bg-zinc-800"
+                className="focus:bg-[#3a3a3c] text-[#dcdcde]"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New File
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setIsCreating('folder')}
-                className="focus:bg-zinc-800"
+                className="focus:bg-[#3a3a3c] text-[#dcdcde]"
               >
                 <FolderPlus className="w-4 h-4 mr-2" />
                 New Folder
@@ -255,14 +255,14 @@ export function FileExplorer() {
                 onKeyDown={handleKeyDown}
                 onBlur={handleCreate}
                 placeholder={isCreating === 'file' ? 'filename.ts' : 'folder-name'}
-                className="h-7 text-sm bg-zinc-800 border-zinc-700"
+                className="h-7 text-sm bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                 autoFocus
               />
             </div>
           )}
 
           {fileTree.length === 0 && !isCreating ? (
-            <div className="px-4 py-8 text-center text-zinc-500 text-sm">
+            <div className="px-4 py-8 text-center text-[#7a7a7c] text-sm">
               <p>No files yet</p>
               <p className="text-xs mt-1">Start coding to create files</p>
             </div>

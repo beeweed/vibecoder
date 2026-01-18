@@ -86,24 +86,24 @@ export function ModelSelector({
         disabled={disabled}
         className={cn(
           'flex items-center justify-between gap-2 w-[180px] md:w-[280px] h-10 px-3',
-          'bg-zinc-900 border border-zinc-700 rounded-md',
-          'text-sm text-zinc-100 text-left',
-          'hover:bg-zinc-800 transition-colors',
+          'bg-[#272729] border border-[#3a3a3c] rounded-md',
+          'text-sm text-[#dcdcde] text-left',
+          'hover:bg-[#3a3a3c] transition-colors',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          isOpen && 'ring-2 ring-violet-500 border-violet-500'
+          isOpen && 'ring-2 ring-[#dcdcde] border-[#dcdcde]'
         )}
       >
         {isLoading ? (
           <div className="flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="hidden md:inline text-zinc-400">Loading...</span>
+            <span className="hidden md:inline text-[#9a9a9c]">Loading...</span>
           </div>
         ) : (
           <span className="truncate">{selectedModelName}</span>
         )}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-zinc-400 transition-transform flex-shrink-0',
+            'w-4 h-4 text-[#9a9a9c] transition-transform flex-shrink-0',
             isOpen && 'rotate-180'
           )}
         />
@@ -115,15 +115,15 @@ export function ModelSelector({
           className={cn(
             'absolute top-full right-0 mt-1 z-50',
             'w-[300px] md:w-[400px]',
-            'bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl',
+            'bg-[#1e1e20] border border-[#3a3a3c] rounded-lg shadow-xl',
             'overflow-hidden'
           )}
           onKeyDown={handleKeyDown}
         >
           {/* Search Input */}
-          <div className="p-2 border-b border-zinc-800">
+          <div className="p-2 border-b border-[#272729]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7a7a7c]" />
               <input
                 ref={inputRef}
                 type="text"
@@ -131,18 +131,18 @@ export function ModelSelector({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search models..."
                 className={cn(
-                  'w-full h-9 pl-9 pr-8 bg-zinc-800 border border-zinc-700 rounded-md',
-                  'text-sm text-zinc-100 placeholder:text-zinc-500',
-                  'focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500'
+                  'w-full h-9 pl-9 pr-8 bg-[#272729] border border-[#3a3a3c] rounded-md',
+                  'text-sm text-[#dcdcde] placeholder:text-[#7a7a7c]',
+                  'focus:outline-none focus:ring-2 focus:ring-[#dcdcde] focus:border-[#dcdcde]'
                 )}
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-zinc-700 rounded"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-[#3a3a3c] rounded"
                 >
-                  <X className="w-3 h-3 text-zinc-400" />
+                  <X className="w-3 h-3 text-[#9a9a9c]" />
                 </button>
               )}
             </div>
@@ -159,30 +159,30 @@ export function ModelSelector({
                     onClick={() => handleSelect(model.id)}
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-2 text-left',
-                      'hover:bg-zinc-800 transition-colors',
-                      selectedModel === model.id && 'bg-violet-500/10'
+                      'hover:bg-[#272729] transition-colors',
+                      selectedModel === model.id && 'bg-[#272729]'
                     )}
                   >
                     <div
                       className={cn(
                         'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
                         selectedModel === model.id
-                          ? 'bg-violet-500 text-white'
-                          : 'border border-zinc-600'
+                          ? 'bg-[#dcdcde] text-[#161618]'
+                          : 'border border-[#4a4a4c]'
                       )}
                     >
                       {selectedModel === model.id && <Check className="w-3 h-3" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-100 truncate">{model.name}</p>
-                      <p className="text-xs text-zinc-500 truncate">{model.id}</p>
+                      <p className="text-sm text-[#dcdcde] truncate">{model.name}</p>
+                      <p className="text-xs text-[#7a7a7c] truncate">{model.id}</p>
                     </div>
                   </button>
                 ))}
               </div>
             ) : (
               <div className="py-8 text-center">
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-[#7a7a7c]">
                   {models.length === 0
                     ? 'No models available. Add API key first.'
                     : 'No models found matching your search.'}
@@ -193,8 +193,8 @@ export function ModelSelector({
 
           {/* Footer with count */}
           {models.length > 0 && (
-            <div className="px-3 py-2 border-t border-zinc-800 bg-zinc-900/50">
-              <p className="text-xs text-zinc-500">
+            <div className="px-3 py-2 border-t border-[#272729] bg-[#1e1e20]/50">
+              <p className="text-xs text-[#7a7a7c]">
                 {filteredModels.length} of {models.length} models
               </p>
             </div>

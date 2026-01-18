@@ -16,7 +16,7 @@ export function MobileNav({ activeTab, setActiveTab }: MobileNavProps) {
   ];
 
   return (
-    <nav className="flex items-center justify-around border-t border-zinc-800 bg-zinc-900 py-2 px-4 safe-area-pb">
+    <nav className="flex items-center justify-around border-t border-[#272729] bg-[#1e1e20] py-2 px-4 safe-area-pb">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -28,8 +28,8 @@ export function MobileNav({ activeTab, setActiveTab }: MobileNavProps) {
             className={cn(
               'flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors',
               isActive
-                ? 'text-violet-400 bg-violet-500/10'
-                : 'text-zinc-500 hover:text-zinc-300'
+                ? 'text-[#dcdcde] bg-[#272729]'
+                : 'text-[#7a7a7c] hover:text-[#b0b0b2]'
             )}
           >
             <Icon className="w-5 h-5" />

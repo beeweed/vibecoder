@@ -416,16 +416,16 @@ export function SettingsModal() {
 
   return (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-900 border-zinc-800 max-h-[90vh]">
+      <DialogContent className="sm:max-w-[500px] bg-[#1e1e20] border-[#3a3a3c] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Settings</DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-[#dcdcde]">Settings</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6 py-4">
             {/* Provider Selection */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 AI Provider
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -435,8 +435,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'openrouter'
-                      ? 'bg-violet-500/20 border-violet-500 text-violet-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Globe className="w-3.5 h-3.5" />
@@ -448,8 +448,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'groq'
-                      ? 'bg-orange-500/20 border-orange-500 text-orange-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Zap className="w-3.5 h-3.5" />
@@ -461,8 +461,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'cohere'
-                      ? 'bg-red-500/20 border-red-400 text-red-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
@@ -474,8 +474,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'chutes'
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Rocket className="w-3.5 h-3.5" />
@@ -487,8 +487,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'fireworks'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Flame className="w-3.5 h-3.5" />
@@ -500,8 +500,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'cerebras'
-                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Brain className="w-3.5 h-3.5" />
@@ -513,8 +513,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'huggingface'
-                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Bot className="w-3.5 h-3.5" />
@@ -526,8 +526,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'gemini'
-                      ? 'bg-blue-500/20 border-blue-500 text-blue-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -539,8 +539,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'mistral'
-                      ? 'bg-orange-500/20 border-orange-400 text-orange-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Wind className="w-3.5 h-3.5" />
@@ -552,8 +552,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'deepseek'
-                      ? 'bg-sky-500/20 border-sky-500 text-sky-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Fish className="w-3.5 h-3.5" />
@@ -565,8 +565,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'openai'
-                      ? 'bg-green-500/20 border-green-500 text-green-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <CircleDot className="w-3.5 h-3.5" />
@@ -578,8 +578,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'anthropic'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Hexagon className="w-3.5 h-3.5" />
@@ -591,8 +591,8 @@ export function SettingsModal() {
                   className={cn(
                     'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
                     provider === 'zai'
-                      ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-[#272729] border-[#dcdcde] text-[#dcdcde]'
+                      : 'bg-[#272729] border-[#3a3a3c] text-[#9a9a9c] hover:bg-[#3a3a3c]'
                   )}
                 >
                   <Atom className="w-3.5 h-3.5" />
@@ -601,11 +601,11 @@ export function SettingsModal() {
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator className="bg-[#3a3a3c]" />
 
             {/* OpenRouter API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 OpenRouter API Key
               </label>
               <div className="flex gap-2">
@@ -615,7 +615,7 @@ export function SettingsModal() {
                     value={localApiKey}
                     onChange={(e) => setLocalApiKey(e.target.value)}
                     placeholder="sk-or-v1-..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -634,7 +634,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveOpenRouterKey}
                   disabled={isLoadingModels}
-                  className="bg-violet-600 hover:bg-violet-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'openrouter' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -643,13 +643,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://openrouter.ai/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-violet-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   openrouter.ai/keys
                 </a>
@@ -658,7 +658,7 @@ export function SettingsModal() {
 
             {/* Groq API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Groq API Key
               </label>
               <div className="flex gap-2">
@@ -668,7 +668,7 @@ export function SettingsModal() {
                     value={localGroqApiKey}
                     onChange={(e) => setLocalGroqApiKey(e.target.value)}
                     placeholder="gsk_..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -687,7 +687,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveGroqKey}
                   disabled={isLoadingModels}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'groq' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -696,13 +696,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://console.groq.com/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-orange-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   console.groq.com/keys
                 </a>
@@ -711,7 +711,7 @@ export function SettingsModal() {
 
             {/* Cohere API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Cohere API Key
               </label>
               <div className="flex gap-2">
@@ -721,7 +721,7 @@ export function SettingsModal() {
                     value={localCohereApiKey}
                     onChange={(e) => setLocalCohereApiKey(e.target.value)}
                     placeholder="..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -740,7 +740,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveCohereKey}
                   disabled={isLoadingModels}
-                  className="bg-red-600 hover:bg-red-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'cohere' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -749,13 +749,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://dashboard.cohere.com/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-red-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   dashboard.cohere.com/api-keys
                 </a>
@@ -764,7 +764,7 @@ export function SettingsModal() {
 
             {/* Chutes API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Chutes API Key
               </label>
               <div className="flex gap-2">
@@ -774,7 +774,7 @@ export function SettingsModal() {
                     value={localChutesApiKey}
                     onChange={(e) => setLocalChutesApiKey(e.target.value)}
                     placeholder="cpk_..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -793,7 +793,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveChutesKey}
                   disabled={isLoadingModels}
-                  className="bg-cyan-600 hover:bg-cyan-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'chutes' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -802,13 +802,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://chutes.ai/app"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cyan-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   chutes.ai/app
                 </a>
@@ -817,7 +817,7 @@ export function SettingsModal() {
 
             {/* Fireworks API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Fireworks API Key
               </label>
               <div className="flex gap-2">
@@ -827,7 +827,7 @@ export function SettingsModal() {
                     value={localFireworksApiKey}
                     onChange={(e) => setLocalFireworksApiKey(e.target.value)}
                     placeholder="fw_..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -846,7 +846,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveFireworksKey}
                   disabled={isLoadingModels}
-                  className="bg-amber-600 hover:bg-amber-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'fireworks' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -855,13 +855,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://fireworks.ai/account/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-amber-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   fireworks.ai/account/api-keys
                 </a>
@@ -870,7 +870,7 @@ export function SettingsModal() {
 
             {/* Cerebras API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Cerebras API Key
               </label>
               <div className="flex gap-2">
@@ -880,7 +880,7 @@ export function SettingsModal() {
                     value={localCerebrasApiKey}
                     onChange={(e) => setLocalCerebrasApiKey(e.target.value)}
                     placeholder="csk-..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -899,7 +899,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveCerebrasKey}
                   disabled={isLoadingModels}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'cerebras' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -908,13 +908,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://cloud.cerebras.ai/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-emerald-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   cloud.cerebras.ai/api-keys
                 </a>
@@ -923,7 +923,7 @@ export function SettingsModal() {
 
             {/* Hugging Face API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Hugging Face API Key
               </label>
               <div className="flex gap-2">
@@ -933,7 +933,7 @@ export function SettingsModal() {
                     value={localHuggingfaceApiKey}
                     onChange={(e) => setLocalHuggingfaceApiKey(e.target.value)}
                     placeholder="hf_..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -952,7 +952,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveHuggingfaceKey}
                   disabled={isLoadingModels}
-                  className="bg-yellow-600 hover:bg-yellow-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'huggingface' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -961,13 +961,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://huggingface.co/settings/tokens"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-yellow-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   huggingface.co/settings/tokens
                 </a>
@@ -976,7 +976,7 @@ export function SettingsModal() {
 
             {/* Gemini API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Gemini API Key
               </label>
               <div className="flex gap-2">
@@ -986,7 +986,7 @@ export function SettingsModal() {
                     value={localGeminiApiKey}
                     onChange={(e) => setLocalGeminiApiKey(e.target.value)}
                     placeholder="AIza..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1005,7 +1005,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveGeminiKey}
                   disabled={isLoadingModels}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'gemini' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1014,13 +1014,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://aistudio.google.com/apikey"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   aistudio.google.com/apikey
                 </a>
@@ -1029,7 +1029,7 @@ export function SettingsModal() {
 
             {/* Mistral API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Mistral API Key
               </label>
               <div className="flex gap-2">
@@ -1039,7 +1039,7 @@ export function SettingsModal() {
                     value={localMistralApiKey}
                     onChange={(e) => setLocalMistralApiKey(e.target.value)}
                     placeholder="..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1058,7 +1058,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveMistralKey}
                   disabled={isLoadingModels}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'mistral' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1067,13 +1067,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://console.mistral.ai/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-orange-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   console.mistral.ai/api-keys
                 </a>
@@ -1082,7 +1082,7 @@ export function SettingsModal() {
 
             {/* DeepSeek API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 DeepSeek API Key
               </label>
               <div className="flex gap-2">
@@ -1092,7 +1092,7 @@ export function SettingsModal() {
                     value={localDeepseekApiKey}
                     onChange={(e) => setLocalDeepseekApiKey(e.target.value)}
                     placeholder="sk-..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1111,7 +1111,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveDeepseekKey}
                   disabled={isLoadingModels}
-                  className="bg-sky-600 hover:bg-sky-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'deepseek' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1120,13 +1120,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://platform.deepseek.com/api_keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sky-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   platform.deepseek.com/api_keys
                 </a>
@@ -1135,7 +1135,7 @@ export function SettingsModal() {
 
             {/* OpenAI API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 OpenAI API Key
               </label>
               <div className="flex gap-2">
@@ -1145,7 +1145,7 @@ export function SettingsModal() {
                     value={localOpenaiApiKey}
                     onChange={(e) => setLocalOpenaiApiKey(e.target.value)}
                     placeholder="sk-..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1164,7 +1164,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveOpenaiKey}
                   disabled={isLoadingModels}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'openai' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1173,13 +1173,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-green-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   platform.openai.com/api-keys
                 </a>
@@ -1188,7 +1188,7 @@ export function SettingsModal() {
 
             {/* Anthropic API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Anthropic API Key
               </label>
               <div className="flex gap-2">
@@ -1198,7 +1198,7 @@ export function SettingsModal() {
                     value={localAnthropicApiKey}
                     onChange={(e) => setLocalAnthropicApiKey(e.target.value)}
                     placeholder="sk-ant-..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1217,7 +1217,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveAnthropicKey}
                   disabled={isLoadingModels}
-                  className="bg-amber-600 hover:bg-amber-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'anthropic' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1226,13 +1226,13 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-amber-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   console.anthropic.com/settings/keys
                 </a>
@@ -1241,7 +1241,7 @@ export function SettingsModal() {
 
             {/* Z.ai API Key */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-[#b0b0b2]">
                 Z.ai API Key
               </label>
               <div className="flex gap-2">
@@ -1251,7 +1251,7 @@ export function SettingsModal() {
                     value={localZaiApiKey}
                     onChange={(e) => setLocalZaiApiKey(e.target.value)}
                     placeholder="..."
-                    className="pr-10 bg-zinc-800 border-zinc-700"
+                    className="pr-10 bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
                   />
                   <Button
                     type="button"
@@ -1270,7 +1270,7 @@ export function SettingsModal() {
                 <Button
                   onClick={handleSaveZaiKey}
                   disabled={isLoadingModels}
-                  className="bg-indigo-600 hover:bg-indigo-700"
+                  className="bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
                 >
                   {isLoadingModels && provider === 'zai' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1279,26 +1279,26 @@ export function SettingsModal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[#7a7a7c]">
                 Get your API key from{' '}
                 <a
                   href="https://z.ai/usercenter/apikeys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-400 hover:underline"
+                  className="text-[#dcdcde] hover:underline"
                 >
                   z.ai/usercenter/apikeys
                 </a>
               </p>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator className="bg-[#3a3a3c]" />
 
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 onClick={handleClearSettings}
-                className="flex-1 border-zinc-700 hover:bg-zinc-800"
+                className="flex-1 border-[#3a3a3c] hover:bg-[#272729] text-[#dcdcde]"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear All
@@ -1308,7 +1308,7 @@ export function SettingsModal() {
                   variant="outline"
                   onClick={handleRefreshModels}
                   disabled={isLoadingModels}
-                  className="border-zinc-700 hover:bg-zinc-800"
+                  className="border-[#3a3a3c] hover:bg-[#272729] text-[#dcdcde]"
                 >
                   <RefreshCw
                     className={`w-4 h-4 mr-2 ${isLoadingModels ? 'animate-spin' : ''}`}

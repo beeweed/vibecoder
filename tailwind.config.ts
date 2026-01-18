@@ -49,7 +49,10 @@ export default {
           '3': 'hsl(var(--chart-3))',
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))'
-        }
+        },
+        'vibe-bg': '#161618',
+        'vibe-btn': '#dcdcde',
+        'vibe-surface': '#272729',
       },
       borderRadius: {
         lg: 'var(--radius)',
