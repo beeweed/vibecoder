@@ -360,8 +360,8 @@ export function AIPanel() {
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-4 py-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 px-3 py-4">
+        <div className="space-y-4 pr-1">
           {messages.length === 0 && (
             <div className="text-center py-12 text-[#7a7a7c]">
               <Bot className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -377,59 +377,48 @@ export function AIPanel() {
               key={message.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                'flex gap-2',
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              )}
             >
-              {message.role === 'user' && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-[#272729] text-[#dcdcde]">
-                  <User className="w-3.5 h-3.5" />
+              {message.role === 'user' ? (
+                <div className="flex items-start gap-2 flex-row-reverse">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-[#272729] text-[#dcdcde]">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="rounded-lg px-3 py-2 bg-[#272729] text-[#dcdcde] text-sm" style={{ wordBreak: 'break-word' }}>
+                    {message.content}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-4 mb-3 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li>{children}</li>,
+                      code: ({ children }) => (
+                        <code className="bg-[#272729] px-1.5 py-0.5 rounded text-xs font-mono text-[#dcdcde]">
+                          {children}
+                        </code>
+                      ),
+                      pre: ({ children }) => (
+                        <pre className="bg-[#272729] p-3 rounded text-xs overflow-x-auto my-3">
+                          {children}
+                        </pre>
+                      ),
+                      strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-4 text-[#dcdcde]">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-3 text-[#dcdcde]">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 text-[#dcdcde]">{children}</h3>,
+                    }}
+                  >
+                    {message.content || (message.isStreaming ? '...' : '')}
+                  </ReactMarkdown>
+                  {message.isStreaming && (
+                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
+                  )}
                 </div>
               )}
-
-              <div
-                className={cn(
-                  message.role === 'user'
-                    ? 'rounded-lg px-3 py-2 max-w-[85%] bg-[#272729] text-[#dcdcde]'
-                    : 'flex-1 text-[#b0b0b2]'
-                )}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="text-sm leading-relaxed prose prose-invert max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
-                        ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                        li: ({ children }) => <li className="text-sm">{children}</li>,
-                        code: ({ children }) => (
-                          <code className="bg-[#272729] px-1 py-0.5 rounded text-xs font-mono">
-                            {children}
-                          </code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="bg-[#272729] p-2 rounded text-xs overflow-x-auto my-2">
-                            {children}
-                          </pre>
-                        ),
-                        strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
-                        em: ({ children }) => <em className="italic">{children}</em>,
-                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 text-[#dcdcde]">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 text-[#dcdcde]">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 text-[#dcdcde]">{children}</h3>,
-                      }}
-                    >
-                      {message.content || (message.isStreaming ? '...' : '')}
-                    </ReactMarkdown>
-                    {message.isStreaming && (
-                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                )}
-              </div>
             </motion.div>
           ))}
           <div ref={messagesEndRef} />
