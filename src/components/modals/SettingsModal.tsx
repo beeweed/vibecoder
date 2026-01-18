@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,8 @@ export function SettingsModal() {
     setMistralApiKey,
     deepseekApiKey,
     setDeepseekApiKey,
+    openaiApiKey,
+    setOpenaiApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -56,6 +58,7 @@ export function SettingsModal() {
   const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [showMistralApiKey, setShowMistralApiKey] = useState(false);
   const [showDeepseekApiKey, setShowDeepseekApiKey] = useState(false);
+  const [showOpenaiApiKey, setShowOpenaiApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -66,6 +69,7 @@ export function SettingsModal() {
   const [localGeminiApiKey, setLocalGeminiApiKey] = useState(geminiApiKey || '');
   const [localMistralApiKey, setLocalMistralApiKey] = useState(mistralApiKey || '');
   const [localDeepseekApiKey, setLocalDeepseekApiKey] = useState(deepseekApiKey || '');
+  const [localOpenaiApiKey, setLocalOpenaiApiKey] = useState(openaiApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -107,6 +111,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalDeepseekApiKey(deepseekApiKey || '');
   }, [deepseekApiKey]);
+
+  useEffect(() => {
+    setLocalOpenaiApiKey(openaiApiKey || '');
+  }, [openaiApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -238,6 +246,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveOpenaiKey = async () => {
+    setOpenaiApiKey(localOpenaiApiKey || null);
+    if (localOpenaiApiKey && provider === 'openai') {
+      await fetchModels('openai', localOpenaiApiKey);
+      toast.success('OpenAI API key saved');
+    } else if (!localOpenaiApiKey) {
+      if (provider === 'openai') setAvailableModels([]);
+      toast.success('OpenAI API key cleared');
+    } else {
+      toast.success('OpenAI API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -251,6 +272,7 @@ export function SettingsModal() {
       else if (prov === 'gemini') endpoint = '/api/models/gemini';
       else if (prov === 'mistral') endpoint = '/api/models/mistral';
       else if (prov === 'deepseek') endpoint = '/api/models/deepseek';
+      else if (prov === 'openai') endpoint = '/api/models/openai';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -281,6 +303,7 @@ export function SettingsModal() {
     else if (newProvider === 'gemini') key = geminiApiKey;
     else if (newProvider === 'mistral') key = mistralApiKey;
     else if (newProvider === 'deepseek') key = deepseekApiKey;
+    else if (newProvider === 'openai') key = openaiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -300,6 +323,7 @@ export function SettingsModal() {
     setLocalGeminiApiKey('');
     setLocalMistralApiKey('');
     setLocalDeepseekApiKey('');
+    setLocalOpenaiApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -314,6 +338,7 @@ export function SettingsModal() {
     else if (provider === 'gemini') key = geminiApiKey;
     else if (provider === 'mistral') key = mistralApiKey;
     else if (provider === 'deepseek') key = deepseekApiKey;
+    else if (provider === 'openai') key = openaiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -331,6 +356,7 @@ export function SettingsModal() {
     if (provider === 'gemini') return geminiApiKey;
     if (provider === 'mistral') return mistralApiKey;
     if (provider === 'deepseek') return deepseekApiKey;
+    if (provider === 'openai') return openaiApiKey;
     return apiKey;
   };
 
@@ -480,6 +506,19 @@ export function SettingsModal() {
                 >
                   <Fish className="w-3.5 h-3.5" />
                   <span className="font-medium">DeepSeek</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('openai')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'openai'
+                      ? 'bg-green-500/20 border-green-500 text-green-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <CircleDot className="w-3.5 h-3.5" />
+                  <span className="font-medium">OpenAI</span>
                 </button>
               </div>
             </div>
@@ -1012,6 +1051,59 @@ export function SettingsModal() {
                   className="text-sky-400 hover:underline"
                 >
                   platform.deepseek.com/api_keys
+                </a>
+              </p>
+            </div>
+
+            {/* OpenAI API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                OpenAI API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showOpenaiApiKey ? 'text' : 'password'}
+                    value={localOpenaiApiKey}
+                    onChange={(e) => setLocalOpenaiApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowOpenaiApiKey(!showOpenaiApiKey)}
+                  >
+                    {showOpenaiApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveOpenaiKey}
+                  disabled={isLoadingModels}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isLoadingModels && provider === 'openai' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-400 hover:underline"
+                >
+                  platform.openai.com/api-keys
                 </a>
               </p>
             </div>
