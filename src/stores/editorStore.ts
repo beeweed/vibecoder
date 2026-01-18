@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface EditorTab {
   id: string;
@@ -36,7 +37,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
 
     const newTab: EditorTab = {
-      id: `tab-${Date.now()}`,
+      id: `tab-${uuidv4()}`,
       filePath: path,
       fileName,
       isModified: false,
