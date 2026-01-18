@@ -19,6 +19,7 @@ export function Header() {
     fireworksApiKey,
     cerebrasApiKey,
     huggingfaceApiKey,
+    geminiApiKey,
     selectedModel,
     setSelectedModel,
     availableModels,
@@ -36,6 +37,7 @@ export function Header() {
     if (provider === 'fireworks') return fireworksApiKey;
     if (provider === 'cerebras') return cerebrasApiKey;
     if (provider === 'huggingface') return huggingfaceApiKey;
+    if (provider === 'gemini') return geminiApiKey;
     return apiKey;
   };
   
@@ -63,6 +65,7 @@ export function Header() {
       else if (provider === 'fireworks') endpoint = '/api/models/fireworks';
       else if (provider === 'cerebras') endpoint = '/api/models/cerebras';
       else if (provider === 'huggingface') endpoint = '/api/models/huggingface';
+      else if (provider === 'gemini') endpoint = '/api/models/gemini';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': activeApiKey },
@@ -145,11 +148,13 @@ export function Header() {
             <Brain className="w-3.5 h-3.5 text-emerald-400" />
           ) : provider === 'huggingface' ? (
             <Bot className="w-3.5 h-3.5 text-yellow-400" />
+          ) : provider === 'gemini' ? (
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
           ) : (
             <Globe className="w-3.5 h-3.5 text-violet-400" />
           )}
           <span className="text-xs font-medium text-zinc-400">
-            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : 'OpenRouter'}
+            {provider === 'groq' ? 'Groq' : provider === 'cohere' ? 'Cohere' : provider === 'chutes' ? 'Chutes' : provider === 'fireworks' ? 'Fireworks' : provider === 'cerebras' ? 'Cerebras' : provider === 'huggingface' ? 'HuggingFace' : provider === 'gemini' ? 'Gemini' : 'OpenRouter'}
           </span>
         </div>
 

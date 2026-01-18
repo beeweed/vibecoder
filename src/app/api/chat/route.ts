@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 
-type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface';
+type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini';
 
 function getApiEndpoint(provider: Provider, model?: string): string {
   if (provider === 'groq') {
@@ -98,6 +98,10 @@ export async function POST(request: NextRequest) {
 
     if (provider === 'cohere') {
       return handleCohereChat(messages, model, apiKey, systemPrompt, temperature, maxTokens);
+    }
+
+    if (provider === 'gemini') {
+      return handleGeminiChat(messages, model, apiKey, systemPrompt, temperature, maxTokens);
     }
 
     const apiMessages = [
@@ -375,4 +379,163 @@ async function handleCohereChat(
       Connection: 'keep-alive',
     },
   });
+}
+
+async function handleGeminiChat(
+  messages: Message[],
+  model: string,
+  apiKey: string,
+  systemPrompt: string,
+  temperature: number,
+  maxTokens: number
+): Promise<Response> {
+  const encoder = new TextEncoder();
+
+  const geminiContents = formatMessagesForGemini(messages);
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: geminiContents,
+              systemInstruction: {
+                parts: [{ text: systemPrompt }],
+              },
+              generationConfig: {
+                temperature: temperature ?? 0.7,
+                maxOutputTokens: maxTokens ?? 8192,
+              },
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Gemini API error';
+          try {
+            const error = await response.json();
+            errorMessage = error.error?.message || error.message || 'API error';
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'error', message: 'No response body' })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
+
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+            const data = trimmedLine.slice(6);
+            if (data === '[DONE]') {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: 'done' })}\n\n`
+                )
+              );
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              
+              const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (content) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'token', content })}\n\n`
+                  )
+                );
+              }
+
+              if (parsed.candidates?.[0]?.finishReason === 'STOP') {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'done' })}\n\n`
+                  )
+                );
+              }
+
+              if (parsed.error) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'error', message: parsed.error.message || 'Unknown error' })}\n\n`
+                  )
+                );
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Connection error';
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'error', message })}\n\n`
+          )
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+function formatMessagesForGemini(messages: Message[]): Array<{ role: string; parts: Array<{ text: string }> }> {
+  const geminiMessages: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+  for (const msg of messages) {
+    const role = msg.role === 'assistant' ? 'model' : 'user';
+    geminiMessages.push({
+      role,
+      parts: [{ text: msg.content }],
+    });
+  }
+
+  return geminiMessages;
 }

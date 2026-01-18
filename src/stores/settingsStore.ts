@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { OpenRouterModel } from '@/types/openrouter';
 
-export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface';
+export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini';
 
 interface SettingsStore {
   provider: Provider;
@@ -13,6 +13,7 @@ interface SettingsStore {
   fireworksApiKey: string | null;
   cerebrasApiKey: string | null;
   huggingfaceApiKey: string | null;
+  geminiApiKey: string | null;
   selectedModel: string;
   temperature: number;
   maxTokens: number;
@@ -28,6 +29,7 @@ interface SettingsStore {
   setFireworksApiKey: (key: string | null) => void;
   setCerebrasApiKey: (key: string | null) => void;
   setHuggingfaceApiKey: (key: string | null) => void;
+  setGeminiApiKey: (key: string | null) => void;
   setSelectedModel: (modelId: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
@@ -68,6 +70,8 @@ const getDefaultModel = (provider: Provider): string => {
       return 'llama-3.3-70b';
     case 'huggingface':
       return 'Qwen/Qwen3-Coder-480B-A35B-Instruct';
+    case 'gemini':
+      return 'gemini-2.5-flash';
     default:
       return 'anthropic/claude-sonnet-4';
   }
@@ -84,6 +88,7 @@ export const useSettingsStore = create<SettingsStore>()(
       fireworksApiKey: null,
       cerebrasApiKey: null,
       huggingfaceApiKey: null,
+      geminiApiKey: null,
       selectedModel: 'anthropic/claude-sonnet-4',
       temperature: 0.7,
       maxTokens: 8192,
@@ -101,6 +106,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setFireworksApiKey: (key: string | null) => set({ fireworksApiKey: key }),
       setCerebrasApiKey: (key: string | null) => set({ cerebrasApiKey: key }),
       setHuggingfaceApiKey: (key: string | null) => set({ huggingfaceApiKey: key }),
+      setGeminiApiKey: (key: string | null) => set({ geminiApiKey: key }),
       setSelectedModel: (modelId: string) => set({ selectedModel: modelId }),
       setTemperature: (temp: number) => set({ temperature: temp }),
       setMaxTokens: (tokens: number) => set({ maxTokens: tokens }),
@@ -118,6 +124,7 @@ export const useSettingsStore = create<SettingsStore>()(
           fireworksApiKey: null,
           cerebrasApiKey: null,
           huggingfaceApiKey: null,
+          geminiApiKey: null,
           selectedModel: 'anthropic/claude-sonnet-4',
           temperature: 0.7,
           maxTokens: 8192,
@@ -134,6 +141,7 @@ export const useSettingsStore = create<SettingsStore>()(
         else if (state.provider === 'fireworks') activeKey = state.fireworksApiKey;
         else if (state.provider === 'cerebras') activeKey = state.cerebrasApiKey;
         else if (state.provider === 'huggingface') activeKey = state.huggingfaceApiKey;
+        else if (state.provider === 'gemini') activeKey = state.geminiApiKey;
         else activeKey = state.apiKey;
         return !!activeKey && !!state.selectedModel;
       },
@@ -146,6 +154,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state.provider === 'fireworks') return state.fireworksApiKey;
         if (state.provider === 'cerebras') return state.cerebrasApiKey;
         if (state.provider === 'huggingface') return state.huggingfaceApiKey;
+        if (state.provider === 'gemini') return state.geminiApiKey;
         return state.apiKey;
       },
     }),
@@ -160,6 +169,7 @@ export const useSettingsStore = create<SettingsStore>()(
         fireworksApiKey: state.fireworksApiKey,
         cerebrasApiKey: state.cerebrasApiKey,
         huggingfaceApiKey: state.huggingfaceApiKey,
+        geminiApiKey: state.geminiApiKey,
         selectedModel: state.selectedModel,
         temperature: state.temperature,
         maxTokens: state.maxTokens,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,8 @@ export function SettingsModal() {
     setCerebrasApiKey,
     huggingfaceApiKey,
     setHuggingfaceApiKey,
+    geminiApiKey,
+    setGeminiApiKey,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -47,6 +49,7 @@ export function SettingsModal() {
   const [showFireworksApiKey, setShowFireworksApiKey] = useState(false);
   const [showCerebrasApiKey, setShowCerebrasApiKey] = useState(false);
   const [showHuggingfaceApiKey, setShowHuggingfaceApiKey] = useState(false);
+  const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [localGroqApiKey, setLocalGroqApiKey] = useState(groqApiKey || '');
   const [localCohereApiKey, setLocalCohereApiKey] = useState(cohereApiKey || '');
@@ -54,6 +57,7 @@ export function SettingsModal() {
   const [localFireworksApiKey, setLocalFireworksApiKey] = useState(fireworksApiKey || '');
   const [localCerebrasApiKey, setLocalCerebrasApiKey] = useState(cerebrasApiKey || '');
   const [localHuggingfaceApiKey, setLocalHuggingfaceApiKey] = useState(huggingfaceApiKey || '');
+  const [localGeminiApiKey, setLocalGeminiApiKey] = useState(geminiApiKey || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -83,6 +87,10 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalHuggingfaceApiKey(huggingfaceApiKey || '');
   }, [huggingfaceApiKey]);
+
+  useEffect(() => {
+    setLocalGeminiApiKey(geminiApiKey || '');
+  }, [geminiApiKey]);
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -175,6 +183,19 @@ export function SettingsModal() {
     }
   };
 
+  const handleSaveGeminiKey = async () => {
+    setGeminiApiKey(localGeminiApiKey || null);
+    if (localGeminiApiKey && provider === 'gemini') {
+      await fetchModels('gemini', localGeminiApiKey);
+      toast.success('Gemini API key saved');
+    } else if (!localGeminiApiKey) {
+      if (provider === 'gemini') setAvailableModels([]);
+      toast.success('Gemini API key cleared');
+    } else {
+      toast.success('Gemini API key saved');
+    }
+  };
+
   const fetchModels = async (prov: Provider, key: string) => {
     setIsLoadingModels(true);
     try {
@@ -185,6 +206,7 @@ export function SettingsModal() {
       else if (prov === 'fireworks') endpoint = '/api/models/fireworks';
       else if (prov === 'cerebras') endpoint = '/api/models/cerebras';
       else if (prov === 'huggingface') endpoint = '/api/models/huggingface';
+      else if (prov === 'gemini') endpoint = '/api/models/gemini';
       
       const response = await fetch(endpoint, {
         headers: { 'X-API-Key': key },
@@ -212,6 +234,7 @@ export function SettingsModal() {
     else if (newProvider === 'fireworks') key = fireworksApiKey;
     else if (newProvider === 'cerebras') key = cerebrasApiKey;
     else if (newProvider === 'huggingface') key = huggingfaceApiKey;
+    else if (newProvider === 'gemini') key = geminiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -228,6 +251,7 @@ export function SettingsModal() {
     setLocalFireworksApiKey('');
     setLocalCerebrasApiKey('');
     setLocalHuggingfaceApiKey('');
+    setLocalGeminiApiKey('');
     toast.success('Settings cleared');
   };
 
@@ -239,6 +263,7 @@ export function SettingsModal() {
     else if (provider === 'fireworks') key = fireworksApiKey;
     else if (provider === 'cerebras') key = cerebrasApiKey;
     else if (provider === 'huggingface') key = huggingfaceApiKey;
+    else if (provider === 'gemini') key = geminiApiKey;
     else key = apiKey;
     
     if (key) {
@@ -253,6 +278,7 @@ export function SettingsModal() {
     if (provider === 'fireworks') return fireworksApiKey;
     if (provider === 'cerebras') return cerebrasApiKey;
     if (provider === 'huggingface') return huggingfaceApiKey;
+    if (provider === 'gemini') return geminiApiKey;
     return apiKey;
   };
 
@@ -363,6 +389,19 @@ export function SettingsModal() {
                 >
                   <Bot className="w-3.5 h-3.5" />
                   <span className="font-medium">HuggingFace</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProviderChange('gemini')}
+                  className={cn(
+                    'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border transition-all text-xs',
+                    provider === 'gemini'
+                      ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="font-medium">Gemini</span>
                 </button>
               </div>
             </div>
@@ -736,6 +775,59 @@ export function SettingsModal() {
                   className="text-yellow-400 hover:underline"
                 >
                   huggingface.co/settings/tokens
+                </a>
+              </p>
+            </div>
+
+            {/* Gemini API Key */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Gemini API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showGeminiApiKey ? 'text' : 'password'}
+                    value={localGeminiApiKey}
+                    onChange={(e) => setLocalGeminiApiKey(e.target.value)}
+                    placeholder="AIza..."
+                    className="pr-10 bg-zinc-800 border-zinc-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowGeminiApiKey(!showGeminiApiKey)}
+                  >
+                    {showGeminiApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSaveGeminiKey}
+                  disabled={isLoadingModels}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isLoadingModels && provider === 'gemini' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Get your API key from{' '}
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline"
+                >
+                  aistudio.google.com/apikey
                 </a>
               </p>
             </div>
