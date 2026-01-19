@@ -21,11 +21,9 @@ Planning:
 - git push. 
 - git repository clone. 
 - Implement sub agents. 
-- deploy generated applications on vercel, Netlify, other. 
-- llm integration groq, gemini, openai, 10 more. 
+- deploy generated applications on vercel, Netlify, other.
 - implement file-read tool. 
-- implement file-content fetch tool. (for image upload) 
-- make ui professional.
+- implement file-content fetch tool. (for image upload)
 - move single llm calls to agent base system. 
 - file upload with prompt. 
 - implement default file-system templates next.js, python 5 more. 
