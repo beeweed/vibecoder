@@ -8,6 +8,7 @@ interface ChatStore {
   isThinking: boolean;
   abortController: AbortController | null;
   error: string | null;
+  lastCancelledMessageId: string | null;
 
   addUserMessage: (content: string) => string;
   startAssistantMessage: () => string;
@@ -21,6 +22,8 @@ interface ChatStore {
   getMessagesForAPI: () => Array<{ role: string; content: string }>;
   setMessageThinking: (messageId: string, thinking: ThinkingState) => void;
   finalizeThinking: (messageId: string) => void;
+  markMessageCancelled: (messageId: string) => void;
+  clearCancelled: () => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -29,6 +32,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isThinking: false,
   abortController: null,
   error: null,
+  lastCancelledMessageId: null,
 
   addUserMessage: (content: string) => {
     const id = uuidv4();
@@ -136,6 +140,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           : m
       ),
       isThinking: false,
+    }));
+  },
+
+  markMessageCancelled: (messageId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, isStreaming: false, wasCancelled: true }
+          : m
+      ),
+      lastCancelledMessageId: messageId,
+    }));
+  },
+
+  clearCancelled: () => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.wasCancelled ? { ...m, wasCancelled: false } : m
+      ),
+      lastCancelledMessageId: null,
     }));
   },
 }));

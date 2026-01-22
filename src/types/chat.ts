@@ -13,6 +13,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   tokenCount?: number;
   thinking?: ThinkingState;
+  wasCancelled?: boolean;
 }
 
 export interface ChatState {

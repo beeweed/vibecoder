@@ -16,6 +16,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
+  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,10 +53,12 @@ export function AIPanel() {
   const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const currentAssistantMessageIdRef = useRef<string | null>(null);
 
   const messages = useChatStore((s) => s.messages);
   const isGenerating = useChatStore((s) => s.isGenerating);
   const isThinking = useChatStore((s) => s.isThinking);
+  const lastCancelledMessageId = useChatStore((s) => s.lastCancelledMessageId);
   const addUserMessage = useChatStore((s) => s.addUserMessage);
   const startAssistantMessage = useChatStore((s) => s.startAssistantMessage);
   const appendToMessage = useChatStore((s) => s.appendToMessage);
@@ -67,6 +70,8 @@ export function AIPanel() {
   const getMessagesForAPI = useChatStore((s) => s.getMessagesForAPI);
   const setMessageThinking = useChatStore((s) => s.setMessageThinking);
   const finalizeThinking = useChatStore((s) => s.finalizeThinking);
+  const markMessageCancelled = useChatStore((s) => s.markMessageCancelled);
+  const clearCancelled = useChatStore((s) => s.clearCancelled);
 
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
@@ -272,6 +277,7 @@ export function AIPanel() {
       setStatus('writing');
 
       const messageId = startAssistantMessage();
+      currentAssistantMessageIdRef.current = messageId;
       let parserState = createParser();
 
       const response = await fetch('/api/chat', {
@@ -354,6 +360,7 @@ export function AIPanel() {
       }
 
       finalizeMessage(messageId);
+      currentAssistantMessageIdRef.current = null;
       setStatus('completed');
       setCurrentFile(null);
 
@@ -364,8 +371,12 @@ export function AIPanel() {
       }, 2000);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
+        if (currentAssistantMessageIdRef.current) {
+          markMessageCancelled(currentAssistantMessageIdRef.current);
+        }
         setThinking(false);
         setStatus('idle');
+        currentAssistantMessageIdRef.current = null;
         return;
       }
 
@@ -374,6 +385,7 @@ export function AIPanel() {
       agentSetError(message);
       toast.error(message);
       setThinking(false);
+      currentAssistantMessageIdRef.current = null;
     }
   };
 
@@ -381,6 +393,137 @@ export function AIPanel() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+  };
+
+  const handleContinue = async () => {
+    if (isGenerating || !activeApiKey) return;
+
+    clearCancelled();
+
+    const abortController = new AbortController();
+    setGenerating(true, abortController);
+    setStatus('writing');
+
+    try {
+      const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
+      const fileContext = buildFileTreeContext(
+        files.map((f) => ({ path: f.path, content: f.content }))
+      );
+
+      const messageId = startAssistantMessage();
+      currentAssistantMessageIdRef.current = messageId;
+      let parserState = createParser();
+
+      const continueMessages = [
+        ...getMessagesForAPI(),
+        { role: 'user', content: 'Continue from where you left off. Complete the remaining code and files.' }
+      ];
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: continueMessages,
+          model: selectedModel,
+          apiKey: activeApiKey,
+          provider,
+          temperature,
+          maxTokens,
+          systemInstruction,
+          fileContext,
+        }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to connect to API');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmedLine.slice(6));
+
+            if (data.type === 'token' && data.content) {
+              const result = parseChunk(parserState, data.content);
+              parserState = result.state;
+
+              if (result.displayText) {
+                appendToMessage(messageId, result.displayText);
+              }
+
+              if (result.currentFilePath) {
+                setStatus('writing');
+                setCurrentFile(result.currentFilePath);
+              }
+
+              for (const op of result.newOperations) {
+                executeFileOperation(op);
+              }
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'done') {
+              const flushResult = flushParser(parserState);
+              if (flushResult.displayText) {
+                appendToMessage(messageId, flushResult.displayText);
+              }
+              if (flushResult.incompleteOperation) {
+                executeFileOperation(flushResult.incompleteOperation);
+              }
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue;
+            throw e;
+          }
+        }
+      }
+
+      finalizeMessage(messageId);
+      currentAssistantMessageIdRef.current = null;
+      setStatus('completed');
+      setCurrentFile(null);
+
+      setTimeout(() => {
+        if (useAgentStore.getState().status === 'completed') {
+          setStatus('idle');
+        }
+      }, 2000);
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        if (currentAssistantMessageIdRef.current) {
+          markMessageCancelled(currentAssistantMessageIdRef.current);
+        }
+        setStatus('idle');
+        currentAssistantMessageIdRef.current = null;
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      setError(message);
+      agentSetError(message);
+      toast.error(message);
+      currentAssistantMessageIdRef.current = null;
     }
   };
 
@@ -533,34 +676,58 @@ export function AIPanel() {
                   )}
                 </div>
               ) : (
-                <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc ml-4 mb-3 space-y-1">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 space-y-1">{children}</ol>,
-                      li: ({ children }) => <li>{children}</li>,
-                      code: ({ children }) => (
-                        <code className="bg-[#272729] px-1.5 py-0.5 rounded text-xs font-mono text-[#dcdcde]">
-                          {children}
-                        </code>
-                      ),
-                      pre: ({ children }) => (
-                        <pre className="bg-[#272729] p-3 rounded text-xs overflow-x-auto my-3">
-                          {children}
-                        </pre>
-                      ),
-                      strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>,
-                      h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-4 text-[#dcdcde]">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-3 text-[#dcdcde]">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 text-[#dcdcde]">{children}</h3>,
-                    }}
-                  >
-                    {message.content || (message.isStreaming ? '...' : '')}
-                  </ReactMarkdown>
-                  {message.isStreaming && (
-                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
+                <div className="space-y-2">
+                  <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc ml-4 mb-3 space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 space-y-1">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        code: ({ children }) => (
+                          <code className="bg-[#272729] px-1.5 py-0.5 rounded text-xs font-mono text-[#dcdcde]">
+                            {children}
+                          </code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="bg-[#272729] p-3 rounded text-xs overflow-x-auto my-3">
+                            {children}
+                          </pre>
+                        ),
+                        strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-4 text-[#dcdcde]">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-3 text-[#dcdcde]">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 text-[#dcdcde]">{children}</h3>,
+                      }}
+                    >
+                      {message.content || (message.isStreaming ? '...' : '')}
+                    </ReactMarkdown>
+                    {message.isStreaming && (
+                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
+                    )}
+                  </div>
+                  
+                  {/* Continue Button - Show when message was cancelled */}
+                  {message.wasCancelled && !isGenerating && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2 pt-2"
+                    >
+                      <div className="flex items-center gap-1.5 text-xs text-amber-400">
+                        <Square className="w-3 h-3" />
+                        <span>Stopped</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleContinue}
+                        className="h-7 px-3 bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1.5"
+                      >
+                        <Play className="w-3 h-3" />
+                        Continue
+                      </Button>
+                    </motion.div>
                   )}
                 </div>
               )}
