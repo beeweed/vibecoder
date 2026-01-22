@@ -40,7 +40,7 @@ import ReactMarkdown from 'react-markdown';
 
 const statusConfig = {
   idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
-  thinking: { icon: Brain, label: 'Planning...', color: 'text-purple-400' },
+  thinking: { icon: Brain, label: 'Thinking...', color: 'text-purple-400' },
   writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
   refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
   completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
@@ -199,7 +199,7 @@ export function AIPanel() {
       );
 
       // ==========================================
-      // PHASE 1: Thinking / Reasoning
+      // PHASE 1: Thinking / Reasoning (Streaming)
       // ==========================================
       setMessageThinking(userMessageId, { reasoning: '', isStreaming: true });
 
@@ -221,11 +221,49 @@ export function AIPanel() {
         throw new Error(error.error || 'Failed to get thinking response');
       }
 
-      const thinkData = await thinkResponse.json();
-      const reasoning: string = thinkData.reasoning || '';
+      // Stream the thinking response
+      const thinkReader = thinkResponse.body?.getReader();
+      const thinkDecoder = new TextDecoder();
 
-      // Update the user message with the thinking reasoning
-      setMessageThinking(userMessageId, { reasoning, isStreaming: false });
+      if (!thinkReader) {
+        throw new Error('No response body for thinking');
+      }
+
+      let thinkBuffer = '';
+      let fullReasoning = '';
+
+      while (true) {
+        const { done, value } = await thinkReader.read();
+        if (done) break;
+
+        thinkBuffer += thinkDecoder.decode(value, { stream: true });
+        const lines = thinkBuffer.split('\n');
+        thinkBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmedLine.slice(6));
+
+            if (data.type === 'token' && data.content) {
+              fullReasoning += data.content;
+              setMessageThinking(userMessageId, { reasoning: fullReasoning, isStreaming: true });
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'done') {
+              // Thinking complete
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue;
+            throw e;
+          }
+        }
+      }
+
+      // Finalize thinking
+      setMessageThinking(userMessageId, { reasoning: fullReasoning, isStreaming: false });
       finalizeThinking(userMessageId);
       setThinking(false);
 

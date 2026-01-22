@@ -93,55 +93,116 @@ export async function POST(request: NextRequest) {
       { role: 'user', content: userMessage + contextInfo },
     ];
 
-    // For thinking, we use non-streaming for simplicity and to get clean JSON
+    // Handle streaming for different providers
     if (provider === 'gemini') {
-      return handleGeminiThinking(messages, model, apiKey);
+      return handleGeminiThinkingStream(messages, model, apiKey);
     }
 
     if (provider === 'anthropic') {
-      return handleAnthropicThinking(messages, model, apiKey);
+      return handleAnthropicThinkingStream(messages, model, apiKey);
     }
 
     if (provider === 'cohere') {
-      return handleCohereThinking(messages, model, apiKey);
+      return handleCohereThinkingStream(messages, model, apiKey);
     }
 
-    // Default OpenAI-compatible providers
-    const response = await fetch(getApiEndpoint(provider), {
-      method: 'POST',
-      headers: getApiHeaders(provider, apiKey),
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.3,
-        max_tokens: 1024,
-      }),
+    // Default OpenAI-compatible providers with streaming
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const response = await fetch(getApiEndpoint(provider), {
+            method: 'POST',
+            headers: getApiHeaders(provider, apiKey),
+            body: JSON.stringify({
+              model,
+              messages,
+              stream: true,
+              temperature: 0.3,
+              max_tokens: 512,
+            }),
+          });
+
+          if (!response.ok) {
+            let errorMessage = 'API error';
+            try {
+              const error = await response.json();
+              errorMessage = error.error?.message || error.message || 'API error';
+            } catch {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`)
+            );
+            controller.close();
+            return;
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (!reader) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'No response body' })}\n\n`)
+            );
+            controller.close();
+            return;
+          }
+
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+              const data = trimmedLine.slice(6);
+              if (data === '[DONE]') {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
+                );
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'token', content })}\n\n`)
+                  );
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          }
+
+          controller.close();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Connection error';
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+          );
+          controller.close();
+        }
+      },
     });
 
-    if (!response.ok) {
-      let errorMessage = 'API error';
-      try {
-        const error = await response.json();
-        errorMessage = error.error?.message || error.message || 'API error';
-      } catch {
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      }
-      return new Response(
-        JSON.stringify({ error: errorMessage }),
-        { status: response.status, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    // Return the reasoning text directly
-    const reasoning = cleanReasoningResponse(content);
-
-    return new Response(
-      JSON.stringify({ reasoning }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return new Response(
@@ -151,37 +212,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function cleanReasoningResponse(content: string): string {
-  // Clean up the response - remove any JSON formatting if present
-  let reasoning = content.trim();
-  
-  // Try to extract from JSON if wrapped
-  try {
-    const jsonMatch = reasoning.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.reasoning) {
-        reasoning = parsed.reasoning;
-      } else if (parsed.understanding) {
-        reasoning = parsed.understanding;
-      }
-    }
-  } catch {
-    // Not JSON, use as-is
-  }
-  
-  // Remove any markdown code blocks
-  reasoning = reasoning.replace(/```[\s\S]*?```/g, '').trim();
-  
-  // Ensure we have something
-  return reasoning || 'Understanding the request...';
-}
-
-async function handleGeminiThinking(
+async function handleGeminiThinkingStream(
   messages: Message[],
   model: string,
   apiKey: string
 ): Promise<Response> {
+  const encoder = new TextEncoder();
   const geminiContents = messages
     .filter(m => m.role !== 'system')
     .map(msg => ({
@@ -191,51 +227,111 @@ async function handleGeminiThinking(
 
   const systemMessage = messages.find(m => m.role === 'system');
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: geminiContents,
-        systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024,
-        },
-      }),
-    }
-  );
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: geminiContents,
+              systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 512,
+              },
+            }),
+          }
+        );
 
-  if (!response.ok) {
-    let errorMessage = 'Gemini API error';
-    try {
-      const error = await response.json();
-      errorMessage = error.error?.message || 'API error';
-    } catch {
-      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: response.status, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
+        if (!response.ok) {
+          let errorMessage = 'Gemini API error';
+          try {
+            const error = await response.json();
+            errorMessage = error.error?.message || 'API error';
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
 
-  const data = await response.json();
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const reasoning = cleanReasoningResponse(content);
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
 
-  return new Response(
-    JSON.stringify({ reasoning }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+        if (!reader) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'No response body' })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+            const data = trimmedLine.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (content) {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'token', content })}\n\n`)
+                );
+              }
+              if (parsed.candidates?.[0]?.finishReason === 'STOP') {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
+                );
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Connection error';
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 }
 
-async function handleAnthropicThinking(
+async function handleAnthropicThinkingStream(
   messages: Message[],
   model: string,
   apiKey: string
 ): Promise<Response> {
+  const encoder = new TextEncoder();
   const systemMessage = messages.find(m => m.role === 'system');
   const anthropicMessages = messages
     .filter(m => m.role !== 'system')
@@ -244,90 +340,213 @@ async function handleAnthropicThinking(
       content: msg.content,
     }));
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 512,
+            system: systemMessage?.content || THINKING_SYSTEM_PROMPT,
+            messages: anthropicMessages,
+            stream: true,
+            temperature: 0.3,
+          }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = 'Anthropic API error';
+          try {
+            const error = await response.json();
+            errorMessage = error.error?.message || 'API error';
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'No response body' })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+            const data = trimmedLine.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'content_block_delta') {
+                const content = parsed.delta?.text;
+                if (content) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'token', content })}\n\n`)
+                  );
+                }
+              } else if (parsed.type === 'message_stop') {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
+                );
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Connection error';
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+        );
+        controller.close();
+      }
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      system: systemMessage?.content || THINKING_SYSTEM_PROMPT,
-      messages: anthropicMessages,
-      temperature: 0.3,
-    }),
   });
 
-  if (!response.ok) {
-    let errorMessage = 'Anthropic API error';
-    try {
-      const error = await response.json();
-      errorMessage = error.error?.message || 'API error';
-    } catch {
-      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: response.status, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const data = await response.json();
-  const content = data.content?.[0]?.text || '';
-  const reasoning = cleanReasoningResponse(content);
-
-  return new Response(
-    JSON.stringify({ reasoning }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 }
 
-async function handleCohereThinking(
+async function handleCohereThinkingStream(
   messages: Message[],
   model: string,
   apiKey: string
 ): Promise<Response> {
+  const encoder = new TextEncoder();
   const cohereMessages = messages.map(msg => ({
     role: msg.role === 'assistant' ? 'assistant' : msg.role === 'system' ? 'system' : 'user',
     content: msg.content,
   }));
 
-  const response = await fetch('https://api.cohere.com/v2/chat', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = await fetch('https://api.cohere.com/v2/chat', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: cohereMessages,
+            stream: true,
+            temperature: 0.3,
+            max_tokens: 512,
+          }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = 'Cohere API error';
+          try {
+            const error = await response.json();
+            errorMessage = error.message || 'API error';
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'No response body' })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+            const data = trimmedLine.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'content-delta') {
+                const content = parsed.delta?.message?.content?.text;
+                if (content) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'token', content })}\n\n`)
+                  );
+                }
+              } else if (parsed.type === 'message-end') {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
+                );
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Connection error';
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+        );
+        controller.close();
+      }
     },
-    body: JSON.stringify({
-      model,
-      messages: cohereMessages,
-      temperature: 0.3,
-      max_tokens: 1024,
-    }),
   });
 
-  if (!response.ok) {
-    let errorMessage = 'Cohere API error';
-    try {
-      const error = await response.json();
-      errorMessage = error.message || 'API error';
-    } catch {
-      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: response.status, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const data = await response.json();
-  const content = data.message?.content?.[0]?.text || '';
-  const reasoning = cleanReasoningResponse(content);
-
-  return new Response(
-    JSON.stringify({ reasoning }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 }
