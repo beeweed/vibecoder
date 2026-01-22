@@ -14,8 +14,6 @@ import {
   Pencil,
   Brain,
   Sparkles,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,7 +47,6 @@ const statusConfig = {
 
 export function AIPanel() {
   const [input, setInput] = useState('');
-  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -188,9 +185,6 @@ export function AIPanel() {
     setGenerating(true, abortController);
     setThinking(true);
     setStatus('thinking');
-
-    // Expand the thinking section for the current message
-    setExpandedThinking(prev => ({ ...prev, [userMessageId]: true }));
 
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
@@ -474,60 +468,30 @@ export function AIPanel() {
                     </div>
                   </div>
                   
-                  {/* Thinking Section - Below User Message */}
+                  {/* Thinking Text - Direct Display */}
                   {message.thinking && (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       className="ml-0 mr-9"
                     >
-                      <div className="bg-[#1e1e20] border border-[#3a3a3c] rounded-lg overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedThinking(prev => ({
-                            ...prev,
-                            [message.id]: !prev[message.id]
-                          }))}
-                          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-[#272729] transition-colors"
-                        >
-                          {expandedThinking[message.id] ? (
-                            <ChevronDown className="w-4 h-4 text-purple-400" />
+                      <div className="flex items-start gap-2 text-xs text-[#9a9a9c]">
+                        <Brain className="w-3.5 h-3.5 mt-0.5 text-purple-400 flex-shrink-0" />
+                        <p className="leading-relaxed italic">
+                          {message.thinking.isStreaming && !message.thinking.reasoning ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Understanding your request...
+                            </span>
                           ) : (
-                            <ChevronRight className="w-4 h-4 text-purple-400" />
+                            <>
+                              {message.thinking.reasoning}
+                              {message.thinking.isStreaming && (
+                                <span className="inline-block w-1 h-3 ml-0.5 bg-purple-400 animate-pulse align-middle" />
+                              )}
+                            </>
                           )}
-                          <Brain className="w-4 h-4 text-purple-400" />
-                          <span className="text-xs font-medium text-purple-400">
-                            Thinking
-                          </span>
-                          {message.thinking.isStreaming && (
-                            <Loader2 className="w-3 h-3 animate-spin text-purple-400 ml-auto" />
-                          )}
-                        </button>
-                        
-                        <AnimatePresence>
-                          {expandedThinking[message.id] && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="px-3 pb-3 pt-2 border-t border-[#3a3a3c]">
-                                {message.thinking.isStreaming && !message.thinking.reasoning ? (
-                                  <div className="flex items-center gap-2 text-xs text-[#7a7a7c]">
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Understanding your request...
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-[#b0b0b2] leading-relaxed">
-                                    {message.thinking.reasoning}
-                                  </p>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        </p>
                       </div>
                     </motion.div>
                   )}
