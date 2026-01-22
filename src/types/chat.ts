@@ -1,7 +1,7 @@
 export type MessageRole = 'user' | 'assistant' | 'system';
 
-export interface ThinkingPlan {
-  plan: string[];
+export interface ThinkingState {
+  reasoning: string;
   isStreaming?: boolean;
 }
 
@@ -12,7 +12,7 @@ export interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   tokenCount?: number;
-  thinking?: ThinkingPlan;
+  thinking?: ThinkingState;
 }
 
 export interface ChatState {

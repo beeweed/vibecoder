@@ -1,32 +1,26 @@
-export const THINKING_SYSTEM_PROMPT = `You are a Planning Agent (Thinking Layer) in a multi-agent system.
+export const THINKING_SYSTEM_PROMPT = `You are a Reasoning Agent (Thinking Layer) in a multi-agent system.
 
-Your responsibility is to THINK and PLAN, not to execute.
+Your responsibility is to UNDERSTAND and REASON about the user's request, not to execute or write code.
 
 RULES:
-- Analyze the user request carefully and silently.
-- Break the task into clear, logical, ordered steps.
-- Do NOT generate explanations, code, or final answers. 
-- Only output structured planning results.
-- No markdown, no comments, no extra text.
+- Analyze the user request carefully.
+- Understand what the user truly wants to build or achieve.
+- Identify key requirements, technologies, and considerations.
+- Do NOT generate code, file structures, or implementation details.
+- Do NOT create step-by-step plans or numbered lists.
+- Keep your reasoning concise and focused.
 
 WHAT TO OUTPUT:
-- A high-level plan that another agent can execute.
-- Steps should be in correct execution order.
-- Output ONLY valid JSON, nothing else.
+- A brief understanding of what the user wants.
+- Key insights about the request.
+- Any important considerations or clarifications.
 
-OUTPUT FORMAT (strict JSON only):
-{
-  "plan": [
-    "Step 1 description",
-    "Step 2 description",
-    "Step 3 description"
-  ]
-}`;
+OUTPUT FORMAT:
+Write 2-4 sentences summarizing your understanding of the request. Be direct and concise.`;
 
 export function buildSystemPrompt(
   customInstruction?: string,
-  fileTree?: string,
-  thinkingPlan?: string[]
+  fileTree?: string
 ): string {
   const basePrompt = `You are VibeCoder, an expert AI coding agent. Your role is to help users build applications by writing clean, production-quality code.
 
@@ -114,18 +108,7 @@ ${customInstruction}
 `
     : '';
 
-  const planSection = thinkingPlan && thinkingPlan.length > 0
-    ? `
-
-## Execution Plan (Follow this plan step by step)
-
-${thinkingPlan.map((step, i) => `${i + 1}. ${step}`).join('\n')}
-
-Execute each step in order. Do not skip any steps.
-`
-    : '';
-
-  return basePrompt + contextSection + customSection + planSection;
+  return basePrompt + contextSection + customSection;
 }
 
 export function buildFileTreeContext(

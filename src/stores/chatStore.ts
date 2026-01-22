@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingPlan } from '@/types/chat';
+import type { ChatMessage, ThinkingState } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -19,7 +19,7 @@ interface ChatStore {
   cancelGeneration: () => void;
   clearMessages: () => void;
   getMessagesForAPI: () => Array<{ role: string; content: string }>;
-  setMessageThinking: (messageId: string, thinking: ThinkingPlan) => void;
+  setMessageThinking: (messageId: string, thinking: ThinkingState) => void;
   finalizeThinking: (messageId: string) => void;
 }
 
@@ -120,7 +120,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
   },
 
-  setMessageThinking: (messageId: string, thinking: ThinkingPlan) => {
+  setMessageThinking: (messageId: string, thinking: ThinkingState) => {
     set((state) => ({
       messages: state.messages.map((m) =>
         m.id === messageId ? { ...m, thinking } : m

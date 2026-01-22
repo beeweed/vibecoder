@@ -199,9 +199,9 @@ export function AIPanel() {
       );
 
       // ==========================================
-      // PHASE 1: Thinking / Planning
+      // PHASE 1: Thinking / Reasoning
       // ==========================================
-      setMessageThinking(userMessageId, { plan: [], isStreaming: true });
+      setMessageThinking(userMessageId, { reasoning: '', isStreaming: true });
 
       const thinkResponse = await fetch('/api/think', {
         method: 'POST',
@@ -222,10 +222,10 @@ export function AIPanel() {
       }
 
       const thinkData = await thinkResponse.json();
-      const plan: string[] = thinkData.plan || [];
+      const reasoning: string = thinkData.reasoning || '';
 
-      // Update the user message with the thinking plan
-      setMessageThinking(userMessageId, { plan, isStreaming: false });
+      // Update the user message with the thinking reasoning
+      setMessageThinking(userMessageId, { reasoning, isStreaming: false });
       finalizeThinking(userMessageId);
       setThinking(false);
 
@@ -249,7 +249,6 @@ export function AIPanel() {
           maxTokens,
           systemInstruction,
           fileContext,
-          thinkingPlan: plan,
         }),
         signal: abortController.signal,
       });
@@ -460,15 +459,10 @@ export function AIPanel() {
                           )}
                           <Brain className="w-4 h-4 text-purple-400" />
                           <span className="text-xs font-medium text-purple-400">
-                            Thinking Plan
+                            Thinking
                           </span>
                           {message.thinking.isStreaming && (
                             <Loader2 className="w-3 h-3 animate-spin text-purple-400 ml-auto" />
-                          )}
-                          {!message.thinking.isStreaming && message.thinking.plan.length > 0 && (
-                            <span className="text-xs text-[#7a7a7c] ml-auto">
-                              {message.thinking.plan.length} steps
-                            </span>
                           )}
                         </button>
                         
@@ -481,29 +475,16 @@ export function AIPanel() {
                               transition={{ duration: 0.2 }}
                               className="overflow-hidden"
                             >
-                              <div className="px-3 pb-3 pt-1 border-t border-[#3a3a3c]">
-                                {message.thinking.isStreaming && message.thinking.plan.length === 0 ? (
+                              <div className="px-3 pb-3 pt-2 border-t border-[#3a3a3c]">
+                                {message.thinking.isStreaming && !message.thinking.reasoning ? (
                                   <div className="flex items-center gap-2 text-xs text-[#7a7a7c]">
                                     <Loader2 className="w-3 h-3 animate-spin" />
-                                    Analyzing your request...
+                                    Understanding your request...
                                   </div>
                                 ) : (
-                                  <ol className="space-y-1.5 mt-1">
-                                    {message.thinking.plan.map((step, index) => (
-                                      <motion.li
-                                        key={`${message.id}-step-${index}-${step.slice(0, 20)}`}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className="flex items-start gap-2 text-xs"
-                                      >
-                                        <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0 text-[10px] font-medium mt-0.5">
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-[#b0b0b2]">{step}</span>
-                                      </motion.li>
-                                    ))}
-                                  </ol>
+                                  <p className="text-xs text-[#b0b0b2] leading-relaxed">
+                                    {message.thinking.reasoning}
+                                  </p>
                                 )}
                               </div>
                             </motion.div>

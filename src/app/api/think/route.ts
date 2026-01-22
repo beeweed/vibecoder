@@ -135,11 +135,11 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
 
-    // Try to parse JSON from the response
-    const plan = parseThinkingResponse(content);
+    // Return the reasoning text directly
+    const reasoning = cleanReasoningResponse(content);
 
     return new Response(
-      JSON.stringify({ plan }),
+      JSON.stringify({ reasoning }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -151,39 +151,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function parseThinkingResponse(content: string): string[] {
+function cleanReasoningResponse(content: string): string {
+  // Clean up the response - remove any JSON formatting if present
+  let reasoning = content.trim();
+  
+  // Try to extract from JSON if wrapped
   try {
-    // Try to extract JSON from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonMatch = reasoning.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed.plan)) {
-        return parsed.plan;
+      if (parsed.reasoning) {
+        reasoning = parsed.reasoning;
+      } else if (parsed.understanding) {
+        reasoning = parsed.understanding;
       }
     }
   } catch {
-    // If JSON parsing fails, try to extract steps from plain text
+    // Not JSON, use as-is
   }
-
-  // Fallback: try to extract numbered steps
-  const lines = content.split('\n').filter(line => line.trim());
-  const steps: string[] = [];
   
-  for (const line of lines) {
-    const match = line.match(/^\d+[\.\)]\s*(.+)/);
-    if (match) {
-      steps.push(match[1].trim());
-    } else if (line.startsWith('-') || line.startsWith('•')) {
-      steps.push(line.replace(/^[-•]\s*/, '').trim());
-    }
-  }
-
-  if (steps.length > 0) {
-    return steps;
-  }
-
-  // Last resort: return the content as a single step
-  return content.trim() ? [content.trim()] : ['Analyze and implement the request'];
+  // Remove any markdown code blocks
+  reasoning = reasoning.replace(/```[\s\S]*?```/g, '').trim();
+  
+  // Ensure we have something
+  return reasoning || 'Understanding the request...';
 }
 
 async function handleGeminiThinking(
@@ -232,10 +223,10 @@ async function handleGeminiThinking(
 
   const data = await response.json();
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const plan = parseThinkingResponse(content);
+  const reasoning = cleanReasoningResponse(content);
 
   return new Response(
-    JSON.stringify({ plan }),
+    JSON.stringify({ reasoning }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }
@@ -285,10 +276,10 @@ async function handleAnthropicThinking(
 
   const data = await response.json();
   const content = data.content?.[0]?.text || '';
-  const plan = parseThinkingResponse(content);
+  const reasoning = cleanReasoningResponse(content);
 
   return new Response(
-    JSON.stringify({ plan }),
+    JSON.stringify({ reasoning }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }
@@ -333,10 +324,10 @@ async function handleCohereThinking(
 
   const data = await response.json();
   const content = data.message?.content?.[0]?.text || '';
-  const plan = parseThinkingResponse(content);
+  const reasoning = cleanReasoningResponse(content);
 
   return new Response(
-    JSON.stringify({ plan }),
+    JSON.stringify({ reasoning }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }

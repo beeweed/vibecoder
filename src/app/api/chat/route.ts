@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
       maxTokens,
       systemInstruction,
       fileContext,
-      thinkingPlan,
       provider = 'openrouter',
     } = body;
 
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const systemPrompt = buildSystemPrompt(systemInstruction, fileContext, thinkingPlan);
+    const systemPrompt = buildSystemPrompt(systemInstruction, fileContext);
 
     if (provider === 'cohere') {
       return handleCohereChat(messages, model, apiKey, systemPrompt, temperature, maxTokens);
