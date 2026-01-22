@@ -1,22 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
   ChevronDown,
-  Plus,
-  FolderPlus,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import { useEditorStore } from '@/stores/editorStore';
@@ -140,11 +131,6 @@ function FileNode({ node, depth }: FileNodeProps) {
 export function FileExplorer() {
   const nodes = useFileSystemStore((s) => s.nodes);
   const rootChildren = useFileSystemStore((s) => s.rootChildren);
-  const createFile = useFileSystemStore((s) => s.createFile);
-  const createFolder = useFileSystemStore((s) => s.createFolder);
-
-  const [isCreating, setIsCreating] = useState<'file' | 'folder' | null>(null);
-  const [newName, setNewName] = useState('');
 
   const fileTree = useMemo(() => {
     const buildTree = (childIds: string[]): FileTreeNode[] => {
@@ -187,84 +173,20 @@ export function FileExplorer() {
     return buildTree(rootChildren);
   }, [nodes, rootChildren]);
 
-  const handleCreate = () => {
-    if (!newName.trim()) {
-      setIsCreating(null);
-      return;
-    }
-
-    if (isCreating === 'file') {
-      createFile(newName.trim(), '');
-    } else if (isCreating === 'folder') {
-      createFolder(newName.trim());
-    }
-
-    setNewName('');
-    setIsCreating(null);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCreate();
-    } else if (e.key === 'Escape') {
-      setIsCreating(null);
-      setNewName('');
-    }
-  };
-
   return (
     <div className="h-full flex flex-col bg-[#161618]">
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#272729]">
         <span className="text-xs font-semibold text-[#9a9a9c] uppercase tracking-wider">
           Explorer
         </span>
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-6 h-6">
-                <Plus className="w-4 h-4 text-[#9a9a9c]" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#272729] border-[#3a3a3c]">
-              <DropdownMenuItem
-                onClick={() => setIsCreating('file')}
-                className="focus:bg-[#3a3a3c] text-[#dcdcde]"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New File
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setIsCreating('folder')}
-                className="focus:bg-[#3a3a3c] text-[#dcdcde]"
-              >
-                <FolderPlus className="w-4 h-4 mr-2" />
-                New Folder
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="py-2">
-          {isCreating && (
-            <div className="px-3 py-1">
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleCreate}
-                placeholder={isCreating === 'file' ? 'filename.ts' : 'folder-name'}
-                className="h-7 text-sm bg-[#272729] border-[#3a3a3c] text-[#dcdcde]"
-                autoFocus
-              />
-            </div>
-          )}
-
-          {fileTree.length === 0 && !isCreating ? (
+          {fileTree.length === 0 ? (
             <div className="px-4 py-8 text-center text-[#7a7a7c] text-sm">
               <p>No files yet</p>
-              <p className="text-xs mt-1">Start coding to create files</p>
+              <p className="text-xs mt-1">Ask AI to create files for you</p>
             </div>
           ) : (
             fileTree.map((node) => (
