@@ -1,33 +1,39 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage } from '@/types/chat';
+import type { ChatMessage, ThinkingPlan } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
   isGenerating: boolean;
+  isThinking: boolean;
   abortController: AbortController | null;
   error: string | null;
 
-  addUserMessage: (content: string) => void;
+  addUserMessage: (content: string) => string;
   startAssistantMessage: () => string;
   appendToMessage: (messageId: string, chunk: string) => void;
   finalizeMessage: (messageId: string, tokenCount?: number) => void;
   setError: (error: string | null) => void;
   setGenerating: (generating: boolean, controller?: AbortController) => void;
+  setThinking: (thinking: boolean) => void;
   cancelGeneration: () => void;
   clearMessages: () => void;
   getMessagesForAPI: () => Array<{ role: string; content: string }>;
+  setMessageThinking: (messageId: string, thinking: ThinkingPlan) => void;
+  finalizeThinking: (messageId: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   isGenerating: false,
+  isThinking: false,
   abortController: null,
   error: null,
 
   addUserMessage: (content: string) => {
+    const id = uuidv4();
     const message: ChatMessage = {
-      id: uuidv4(),
+      id,
       role: 'user',
       content,
       timestamp: new Date(),
@@ -37,6 +43,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: [...state.messages, message],
       error: null,
     }));
+
+    return id;
   },
 
   startAssistantMessage: () => {
@@ -77,7 +85,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   setError: (error: string | null) => {
-    set({ error, isGenerating: false, abortController: null });
+    set({ error, isGenerating: false, isThinking: false, abortController: null });
   },
 
   setGenerating: (generating: boolean, controller?: AbortController) => {
@@ -88,12 +96,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
+  setThinking: (thinking: boolean) => {
+    set({ isThinking: thinking });
+  },
+
   cancelGeneration: () => {
     const state = get();
     if (state.abortController) {
       state.abortController.abort();
     }
-    set({ isGenerating: false, abortController: null });
+    set({ isGenerating: false, isThinking: false, abortController: null });
   },
 
   clearMessages: () => {
@@ -105,6 +117,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     return state.messages.map((m) => ({
       role: m.role,
       content: m.content,
+    }));
+  },
+
+  setMessageThinking: (messageId: string, thinking: ThinkingPlan) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId ? { ...m, thinking } : m
+      ),
+    }));
+  },
+
+  finalizeThinking: (messageId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.thinking
+          ? { ...m, thinking: { ...m.thinking, isStreaming: false } }
+          : m
+      ),
+      isThinking: false,
     }));
   },
 }));

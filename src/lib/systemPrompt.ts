@@ -1,6 +1,32 @@
+export const THINKING_SYSTEM_PROMPT = `You are a Planning Agent (Thinking Layer) in a multi-agent system.
+
+Your responsibility is to THINK and PLAN, not to execute.
+
+RULES:
+- Analyze the user request carefully and silently.
+- Break the task into clear, logical, ordered steps.
+- Do NOT generate explanations, code, or final answers. 
+- Only output structured planning results.
+- No markdown, no comments, no extra text.
+
+WHAT TO OUTPUT:
+- A high-level plan that another agent can execute.
+- Steps should be in correct execution order.
+- Output ONLY valid JSON, nothing else.
+
+OUTPUT FORMAT (strict JSON only):
+{
+  "plan": [
+    "Step 1 description",
+    "Step 2 description",
+    "Step 3 description"
+  ]
+}`;
+
 export function buildSystemPrompt(
   customInstruction?: string,
-  fileTree?: string
+  fileTree?: string,
+  thinkingPlan?: string[]
 ): string {
   const basePrompt = `You are VibeCoder, an expert AI coding agent. Your role is to help users build applications by writing clean, production-quality code.
 
@@ -88,7 +114,18 @@ ${customInstruction}
 `
     : '';
 
-  return basePrompt + contextSection + customSection;
+  const planSection = thinkingPlan && thinkingPlan.length > 0
+    ? `
+
+## Execution Plan (Follow this plan step by step)
+
+${thinkingPlan.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+Execute each step in order. Do not skip any steps.
+`
+    : '';
+
+  return basePrompt + contextSection + customSection + planSection;
 }
 
 export function buildFileTreeContext(

@@ -1,5 +1,10 @@
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+export interface ThinkingPlan {
+  plan: string[];
+  isStreaming?: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -7,11 +12,13 @@ export interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   tokenCount?: number;
+  thinking?: ThinkingPlan;
 }
 
 export interface ChatState {
   messages: ChatMessage[];
   isGenerating: boolean;
+  isThinking: boolean;
   abortController: AbortController | null;
   error: string | null;
 }

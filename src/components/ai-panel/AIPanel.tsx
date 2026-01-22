@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send,
@@ -14,6 +14,8 @@ import {
   Pencil,
   Brain,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,7 +40,7 @@ import ReactMarkdown from 'react-markdown';
 
 const statusConfig = {
   idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
-  thinking: { icon: Brain, label: 'Thinking...', color: 'text-[#dcdcde]' },
+  thinking: { icon: Brain, label: 'Planning...', color: 'text-purple-400' },
   writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
   refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
   completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
@@ -47,19 +49,24 @@ const statusConfig = {
 
 export function AIPanel() {
   const [input, setInput] = useState('');
+  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const messages = useChatStore((s) => s.messages);
   const isGenerating = useChatStore((s) => s.isGenerating);
+  const isThinking = useChatStore((s) => s.isThinking);
   const addUserMessage = useChatStore((s) => s.addUserMessage);
   const startAssistantMessage = useChatStore((s) => s.startAssistantMessage);
   const appendToMessage = useChatStore((s) => s.appendToMessage);
   const finalizeMessage = useChatStore((s) => s.finalizeMessage);
   const setGenerating = useChatStore((s) => s.setGenerating);
+  const setThinking = useChatStore((s) => s.setThinking);
   const setError = useChatStore((s) => s.setError);
   const cancelGeneration = useChatStore((s) => s.cancelGeneration);
   const getMessagesForAPI = useChatStore((s) => s.getMessagesForAPI);
+  const setMessageThinking = useChatStore((s) => s.setMessageThinking);
+  const finalizeThinking = useChatStore((s) => s.finalizeThinking);
 
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
@@ -174,21 +181,61 @@ export function AIPanel() {
 
     const userMessage = input.trim();
     setInput('');
-    addUserMessage(userMessage);
+    const userMessageId = addUserMessage(userMessage);
     clearLastOperations();
 
     const abortController = new AbortController();
     setGenerating(true, abortController);
+    setThinking(true);
     setStatus('thinking');
 
-    const messageId = startAssistantMessage();
-    let parserState = createParser();
+    // Expand the thinking section for the current message
+    setExpandedThinking(prev => ({ ...prev, [userMessageId]: true }));
 
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
       const fileContext = buildFileTreeContext(
         files.map((f) => ({ path: f.path, content: f.content }))
       );
+
+      // ==========================================
+      // PHASE 1: Thinking / Planning
+      // ==========================================
+      setMessageThinking(userMessageId, { plan: [], isStreaming: true });
+
+      const thinkResponse = await fetch('/api/think', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage,
+          model: selectedModel,
+          apiKey: activeApiKey,
+          provider,
+          fileContext,
+        }),
+        signal: abortController.signal,
+      });
+
+      if (!thinkResponse.ok) {
+        const error = await thinkResponse.json();
+        throw new Error(error.error || 'Failed to get thinking response');
+      }
+
+      const thinkData = await thinkResponse.json();
+      const plan: string[] = thinkData.plan || [];
+
+      // Update the user message with the thinking plan
+      setMessageThinking(userMessageId, { plan, isStreaming: false });
+      finalizeThinking(userMessageId);
+      setThinking(false);
+
+      // ==========================================
+      // PHASE 2: Coding / Execution
+      // ==========================================
+      setStatus('writing');
+
+      const messageId = startAssistantMessage();
+      let parserState = createParser();
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -202,6 +249,7 @@ export function AIPanel() {
           maxTokens,
           systemInstruction,
           fileContext,
+          thinkingPlan: plan,
         }),
         signal: abortController.signal,
       });
@@ -280,7 +328,7 @@ export function AIPanel() {
       }, 2000);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
-        finalizeMessage(messageId);
+        setThinking(false);
         setStatus('idle');
         return;
       }
@@ -289,7 +337,7 @@ export function AIPanel() {
       setError(message);
       agentSetError(message);
       toast.error(message);
-      finalizeMessage(messageId);
+      setThinking(false);
     }
   };
 
@@ -379,13 +427,91 @@ export function AIPanel() {
               animate={{ opacity: 1, y: 0 }}
             >
               {message.role === 'user' ? (
-                <div className="flex items-start gap-2 flex-row-reverse">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-[#272729] text-[#dcdcde]">
-                    <User className="w-3.5 h-3.5" />
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 flex-row-reverse">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-[#272729] text-[#dcdcde]">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="rounded-lg px-3 py-2 bg-[#272729] text-[#dcdcde] text-sm" style={{ wordBreak: 'break-word' }}>
+                      {message.content}
+                    </div>
                   </div>
-                  <div className="rounded-lg px-3 py-2 bg-[#272729] text-[#dcdcde] text-sm" style={{ wordBreak: 'break-word' }}>
-                    {message.content}
-                  </div>
+                  
+                  {/* Thinking Section - Below User Message */}
+                  {message.thinking && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="ml-0 mr-9"
+                    >
+                      <div className="bg-[#1e1e20] border border-[#3a3a3c] rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedThinking(prev => ({
+                            ...prev,
+                            [message.id]: !prev[message.id]
+                          }))}
+                          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-[#272729] transition-colors"
+                        >
+                          {expandedThinking[message.id] ? (
+                            <ChevronDown className="w-4 h-4 text-purple-400" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-purple-400" />
+                          )}
+                          <Brain className="w-4 h-4 text-purple-400" />
+                          <span className="text-xs font-medium text-purple-400">
+                            Thinking Plan
+                          </span>
+                          {message.thinking.isStreaming && (
+                            <Loader2 className="w-3 h-3 animate-spin text-purple-400 ml-auto" />
+                          )}
+                          {!message.thinking.isStreaming && message.thinking.plan.length > 0 && (
+                            <span className="text-xs text-[#7a7a7c] ml-auto">
+                              {message.thinking.plan.length} steps
+                            </span>
+                          )}
+                        </button>
+                        
+                        <AnimatePresence>
+                          {expandedThinking[message.id] && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-3 pb-3 pt-1 border-t border-[#3a3a3c]">
+                                {message.thinking.isStreaming && message.thinking.plan.length === 0 ? (
+                                  <div className="flex items-center gap-2 text-xs text-[#7a7a7c]">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Analyzing your request...
+                                  </div>
+                                ) : (
+                                  <ol className="space-y-1.5 mt-1">
+                                    {message.thinking.plan.map((step, index) => (
+                                      <motion.li
+                                        key={`${message.id}-step-${index}-${step.slice(0, 20)}`}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className="flex items-start gap-2 text-xs"
+                                      >
+                                        <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0 text-[10px] font-medium mt-0.5">
+                                          {index + 1}
+                                        </span>
+                                        <span className="text-[#b0b0b2]">{step}</span>
+                                      </motion.li>
+                                    ))}
+                                  </ol>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               ) : (
                 <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
