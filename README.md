@@ -16,7 +16,6 @@ Planning:
 - Implement comprehensive system prompt. 
 - Full-stack development. 
 - web search. 
-- llm thinking. 
 - planning before application creation. 
 - git push. 
 - git repository clone. 
@@ -26,7 +25,7 @@ Planning:
 - implement file-content fetch tool. (for image upload)
 - move single llm calls to agent base system. 
 - file upload with prompt. 
-- implement default file-system templates next.js, python 5 more. 
+- implement default file-system templates next.js, python and 5 more. 
 
 
 
