@@ -14,6 +14,8 @@ import {
   Pencil,
   Brain,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,6 +49,7 @@ const statusConfig = {
 
 export function AIPanel() {
   const [input, setInput] = useState('');
+  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -185,6 +188,8 @@ export function AIPanel() {
     setGenerating(true, abortController);
     setThinking(true);
     setStatus('thinking');
+
+    setExpandedThinking(prev => ({ ...prev, [userMessageId]: true }));
 
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
@@ -468,30 +473,61 @@ export function AIPanel() {
                     </div>
                   </div>
                   
-                  {/* Thinking Text - Direct Display */}
+                  {/* Thinking Dropdown */}
                   {message.thinking && (
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
                       className="ml-0 mr-9"
                     >
-                      <div className="flex items-start gap-2 text-xs text-[#9a9a9c]">
-                        <Brain className="w-3.5 h-3.5 mt-0.5 text-purple-400 flex-shrink-0" />
-                        <p className="leading-relaxed italic">
-                          {message.thinking.isStreaming && !message.thinking.reasoning ? (
-                            <span className="flex items-center gap-2">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Understanding your request...
-                            </span>
+                      <div className="rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedThinking(prev => ({
+                            ...prev,
+                            [message.id]: !prev[message.id]
+                          }))}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[#272729] transition-colors text-xs"
+                        >
+                          {expandedThinking[message.id] ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-purple-400" />
                           ) : (
-                            <>
-                              {message.thinking.reasoning}
-                              {message.thinking.isStreaming && (
-                                <span className="inline-block w-1 h-3 ml-0.5 bg-purple-400 animate-pulse align-middle" />
-                              )}
-                            </>
+                            <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
                           )}
-                        </p>
+                          <Brain className="w-3.5 h-3.5 text-purple-400" />
+                          <span className="font-medium text-purple-400">Thinking</span>
+                          {message.thinking.isStreaming && (
+                            <Loader2 className="w-3 h-3 animate-spin text-purple-400 ml-1" />
+                          )}
+                        </button>
+                        
+                        <AnimatePresence>
+                          {expandedThinking[message.id] && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pl-7 pr-2 pb-2 pt-1">
+                                {message.thinking.isStreaming && !message.thinking.reasoning ? (
+                                  <div className="flex items-center gap-2 text-xs text-[#7a7a7c]">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Understanding your request...
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-[#9a9a9c] leading-relaxed italic">
+                                    {message.thinking.reasoning}
+                                    {message.thinking.isStreaming && (
+                                      <span className="inline-block w-1 h-3 ml-0.5 bg-purple-400 animate-pulse align-middle" />
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </motion.div>
                   )}
