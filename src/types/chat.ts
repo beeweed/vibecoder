@@ -5,6 +5,13 @@ export interface ThinkingState {
   isStreaming?: boolean;
 }
 
+export interface FileOperation {
+  id: string;
+  action: 'created' | 'updated' | 'deleted';
+  filePath: string;
+  fileName: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -14,6 +21,7 @@ export interface ChatMessage {
   tokenCount?: number;
   thinking?: ThinkingState;
   wasCancelled?: boolean;
+  fileOperations?: FileOperation[];
 }
 
 export interface ChatState {

@@ -27,6 +27,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import type { VirtualFile } from '@/types/files';
+import type { FileOperation } from '@/types/chat';
 import { useEditorStore } from '@/stores/editorStore';
 import {
   createParser,
@@ -38,6 +39,77 @@ import { buildFileTreeContext } from '@/lib/systemPrompt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+
+function FileOperationsInline({ 
+  operations, 
+  isStreaming 
+}: { 
+  operations: FileOperation[]; 
+  isStreaming?: boolean;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const openFile = useEditorStore((s) => s.openFile);
+  
+  const displayedOps = showAll ? operations : operations.slice(-1);
+  const hasMore = operations.length > 1;
+  
+  const getActionLabel = (action: string) => {
+    switch (action) {
+      case 'created': return 'Created';
+      case 'updated': return 'Editing';
+      case 'deleted': return 'Deleted';
+      default: return action;
+    }
+  };
+
+  const handleFileClick = (op: FileOperation) => {
+    openFile(op.filePath, op.fileName);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-wrap items-center gap-2 pt-1"
+    >
+      {displayedOps.map((op) => (
+        <button
+          key={op.id}
+          type="button"
+          onClick={() => handleFileClick(op)}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#272729] hover:bg-[#3a3a3c] transition-colors text-xs group"
+        >
+          <FileCode className="w-3.5 h-3.5 text-[#9a9a9c]" />
+          <span className="text-[#9a9a9c]">{getActionLabel(op.action)}</span>
+          <span className="text-[#dcdcde] group-hover:underline">{op.fileName}</span>
+          {isStreaming && op === operations[operations.length - 1] && (
+            <Loader2 className="w-3 h-3 animate-spin text-[#9a9a9c]" />
+          )}
+        </button>
+      ))}
+      
+      {hasMore && !showAll && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="px-2 py-1 rounded-md border border-[#3a3a3c] hover:bg-[#272729] transition-colors text-xs text-[#9a9a9c]"
+        >
+          Show all ({operations.length})
+        </button>
+      )}
+      
+      {showAll && hasMore && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="px-2 py-1 rounded-md border border-[#3a3a3c] hover:bg-[#272729] transition-colors text-xs text-[#9a9a9c]"
+        >
+          Show less
+        </button>
+      )}
+    </motion.div>
+  );
+}
 
 const statusConfig = {
   idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
@@ -72,6 +144,7 @@ export function AIPanel() {
   const finalizeThinking = useChatStore((s) => s.finalizeThinking);
   const markMessageCancelled = useChatStore((s) => s.markMessageCancelled);
   const clearCancelled = useChatStore((s) => s.clearCancelled);
+  const addFileOperation = useChatStore((s) => s.addFileOperation);
 
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
@@ -112,8 +185,6 @@ export function AIPanel() {
   const activeApiKey = getActiveApiKey();
 
   const status = useAgentStore((s) => s.status);
-  const currentFile = useAgentStore((s) => s.currentFile);
-  const activityLog = useAgentStore((s) => s.activityLog);
   const setStatus = useAgentStore((s) => s.setStatus);
   const setCurrentFile = useAgentStore((s) => s.setCurrentFile);
   const addActivityLog = useAgentStore((s) => s.addActivityLog);
@@ -137,26 +208,29 @@ export function AIPanel() {
   }, [messages]);
 
   const executeFileOperation = useCallback(
-    (operation: ParsedFileOperation) => {
+    (operation: ParsedFileOperation, messageId?: string) => {
       const fileName = operation.path.split('/').pop() || operation.path;
 
       switch (operation.type) {
         case 'create':
           createFile(operation.path, operation.content || '');
           addActivityLog('created', operation.path);
+          if (messageId) addFileOperation(messageId, 'created', operation.path);
           openFile(operation.path, fileName);
           break;
         case 'update':
           updateFile(operation.path, operation.content || '');
           addActivityLog('updated', operation.path);
+          if (messageId) addFileOperation(messageId, 'updated', operation.path);
           break;
         case 'delete':
           deleteFile(operation.path);
           addActivityLog('deleted', operation.path);
+          if (messageId) addFileOperation(messageId, 'deleted', operation.path);
           break;
       }
     },
-    [createFile, updateFile, deleteFile, addActivityLog, openFile]
+    [createFile, updateFile, deleteFile, addActivityLog, addFileOperation, openFile]
   );
 
   const handleSubmit = async () => {
@@ -339,7 +413,7 @@ export function AIPanel() {
               }
 
               for (const op of result.newOperations) {
-                executeFileOperation(op);
+                executeFileOperation(op, messageId);
               }
             } else if (data.type === 'error') {
               throw new Error(data.message);
@@ -349,7 +423,7 @@ export function AIPanel() {
                 appendToMessage(messageId, flushResult.displayText);
               }
               if (flushResult.incompleteOperation) {
-                executeFileOperation(flushResult.incompleteOperation);
+                executeFileOperation(flushResult.incompleteOperation, messageId);
               }
             }
           } catch (e) {
@@ -479,7 +553,7 @@ export function AIPanel() {
               }
 
               for (const op of result.newOperations) {
-                executeFileOperation(op);
+                executeFileOperation(op, messageId);
               }
             } else if (data.type === 'error') {
               throw new Error(data.message);
@@ -489,7 +563,7 @@ export function AIPanel() {
                 appendToMessage(messageId, flushResult.displayText);
               }
               if (flushResult.incompleteOperation) {
-                executeFileOperation(flushResult.incompleteOperation);
+                executeFileOperation(flushResult.incompleteOperation, messageId);
               }
             }
           } catch (e) {
@@ -548,44 +622,7 @@ export function AIPanel() {
           </Badge>
         </div>
 
-        <AnimatePresence>
-          {currentFile && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-2 text-sm text-[#dcdcde]"
-            >
-              <FileCode className="w-4 h-4" />
-              <span className="truncate">{currentFile}</span>
-              <Loader2 className="w-3 h-3 animate-spin ml-auto" />
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
-
-      {activityLog.length > 0 && (
-        <div className="px-4 py-2 border-b border-[#272729] max-h-24 overflow-y-auto">
-          <span className="text-xs text-[#7a7a7c] mb-1 block">Recent Activity</span>
-          {activityLog.slice(0, 5).map((log) => (
-            <div
-              key={log.id}
-              className="text-xs flex items-center gap-2 py-0.5 text-[#9a9a9c]"
-            >
-              <span
-                className={cn(
-                  'w-1.5 h-1.5 rounded-full',
-                  log.action === 'created' && 'bg-[#dcdcde]',
-                  log.action === 'updated' && 'bg-[#9a9a9c]',
-                  log.action === 'deleted' && 'bg-red-400'
-                )}
-              />
-              <span className="capitalize">{log.action}</span>
-              <span className="truncate text-[#7a7a7c]">{log.filePath}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <ScrollArea className="flex-1 px-3 py-4">
         <div className="space-y-4 pr-1">
@@ -707,6 +744,14 @@ export function AIPanel() {
                       <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
                     )}
                   </div>
+                  
+                  {/* Inline File Operations */}
+                  {message.fileOperations && message.fileOperations.length > 0 && (
+                    <FileOperationsInline 
+                      operations={message.fileOperations} 
+                      isStreaming={message.isStreaming}
+                    />
+                  )}
                   
                   {/* Continue Button - Show when message was cancelled */}
                   {message.wasCancelled && !isGenerating && (

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingState } from '@/types/chat';
+import type { ChatMessage, ThinkingState, FileOperation } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -24,6 +24,7 @@ interface ChatStore {
   finalizeThinking: (messageId: string) => void;
   markMessageCancelled: (messageId: string) => void;
   clearCancelled: () => void;
+  addFileOperation: (messageId: string, action: 'created' | 'updated' | 'deleted', filePath: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -160,6 +161,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         m.wasCancelled ? { ...m, wasCancelled: false } : m
       ),
       lastCancelledMessageId: null,
+    }));
+  },
+
+  addFileOperation: (messageId: string, action: 'created' | 'updated' | 'deleted', filePath: string) => {
+    const fileName = filePath.split('/').pop() || filePath;
+    const operation: FileOperation = {
+      id: uuidv4(),
+      action,
+      filePath,
+      fileName,
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, fileOperations: [...(m.fileOperations || []), operation] }
+          : m
+      ),
     }));
   },
 }));
