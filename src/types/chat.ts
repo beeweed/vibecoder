@@ -7,9 +7,10 @@ export interface ThinkingState {
 
 export interface FileOperation {
   id: string;
-  action: 'created' | 'updated' | 'deleted';
+  action: 'created' | 'updated' | 'deleted' | 'skipped';
   filePath: string;
   fileName: string;
+  reason?: string; // For skipped operations
 }
 
 export interface ChatMessage {

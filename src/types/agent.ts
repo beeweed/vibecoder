@@ -9,7 +9,7 @@ export type AgentStatus =
 export interface ActivityLogEntry {
   id: string;
   timestamp: Date;
-  action: 'created' | 'updated' | 'deleted';
+  action: 'created' | 'updated' | 'deleted' | 'skipped';
   filePath: string;
 }
 

@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ChevronRight,
   Play,
+  Trash2,
+  SkipForward,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -53,16 +55,59 @@ function FileOperationsInline({
   const displayedOps = showAll ? operations : operations.slice(-1);
   const hasMore = operations.length > 1;
   
-  const getActionLabel = (action: string) => {
+  const getActionConfig = (action: string) => {
     switch (action) {
-      case 'created': return 'Created';
-      case 'updated': return 'Editing';
-      case 'deleted': return 'Deleted';
-      default: return action;
+      case 'created': 
+        return { 
+          label: 'Created', 
+          icon: FileCode, 
+          bgColor: 'bg-[#272729]',
+          textColor: 'text-[#9a9a9c]',
+          fileColor: 'text-[#dcdcde]',
+          hoverBg: 'hover:bg-[#3a3a3c]'
+        };
+      case 'updated': 
+        return { 
+          label: 'Editing', 
+          icon: FileCode, 
+          bgColor: 'bg-[#272729]',
+          textColor: 'text-[#9a9a9c]',
+          fileColor: 'text-[#dcdcde]',
+          hoverBg: 'hover:bg-[#3a3a3c]'
+        };
+      case 'deleted': 
+        return { 
+          label: 'Deleted', 
+          icon: Trash2, 
+          bgColor: 'bg-red-950/50',
+          textColor: 'text-red-400',
+          fileColor: 'text-red-300',
+          hoverBg: 'hover:bg-red-950/70'
+        };
+      case 'skipped': 
+        return { 
+          label: 'Skipped', 
+          icon: SkipForward, 
+          bgColor: 'bg-amber-950/50',
+          textColor: 'text-amber-400',
+          fileColor: 'text-amber-300',
+          hoverBg: 'hover:bg-amber-950/70'
+        };
+      default: 
+        return { 
+          label: action, 
+          icon: FileCode, 
+          bgColor: 'bg-[#272729]',
+          textColor: 'text-[#9a9a9c]',
+          fileColor: 'text-[#dcdcde]',
+          hoverBg: 'hover:bg-[#3a3a3c]'
+        };
     }
   };
 
   const handleFileClick = (op: FileOperation) => {
+    // Don't open deleted or skipped files
+    if (op.action === 'deleted' || op.action === 'skipped') return;
     openFile(op.filePath, op.fileName);
   };
 
@@ -72,21 +117,38 @@ function FileOperationsInline({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-wrap items-center gap-2 pt-1"
     >
-      {displayedOps.map((op) => (
-        <button
-          key={op.id}
-          type="button"
-          onClick={() => handleFileClick(op)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#272729] hover:bg-[#3a3a3c] transition-colors text-xs group"
-        >
-          <FileCode className="w-3.5 h-3.5 text-[#9a9a9c]" />
-          <span className="text-[#9a9a9c]">{getActionLabel(op.action)}</span>
-          <span className="text-[#dcdcde] group-hover:underline">{op.fileName}</span>
-          {isStreaming && op === operations[operations.length - 1] && (
-            <Loader2 className="w-3 h-3 animate-spin text-[#9a9a9c]" />
-          )}
-        </button>
-      ))}
+      {displayedOps.map((op) => {
+        const config = getActionConfig(op.action);
+        const IconComponent = config.icon;
+        const isClickable = op.action !== 'deleted' && op.action !== 'skipped';
+        
+        return (
+          <button
+            key={op.id}
+            type="button"
+            onClick={() => handleFileClick(op)}
+            disabled={!isClickable}
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-xs group",
+              config.bgColor,
+              isClickable ? config.hoverBg : 'cursor-default',
+            )}
+            title={op.reason || undefined}
+          >
+            <IconComponent className={cn("w-3.5 h-3.5", config.textColor)} />
+            <span className={config.textColor}>{config.label}</span>
+            <span className={cn(isClickable && "group-hover:underline", config.fileColor)}>
+              {op.fileName}
+            </span>
+            {op.reason && (
+              <span className="text-amber-400/70 text-[10px]">({op.reason})</span>
+            )}
+            {isStreaming && op === operations[operations.length - 1] && (
+              <Loader2 className="w-3 h-3 animate-spin text-[#9a9a9c]" />
+            )}
+          </button>
+        );
+      })}
       
       {hasMore && !showAll && (
         <button
@@ -236,11 +298,22 @@ export function AIPanel() {
           addActivityLog('updated', operation.path);
           if (messageId) addFileOperation(messageId, 'updated', operation.path);
           return null;
-        case 'delete':
-          deleteFile(operation.path);
-          addActivityLog('deleted', operation.path);
-          if (messageId) addFileOperation(messageId, 'deleted', operation.path);
+        case 'delete': {
+          // Check if file exists before deleting
+          const existingFile = getFileByPath(operation.path);
+          if (existingFile) {
+            deleteFile(operation.path);
+            addActivityLog('deleted', operation.path);
+            if (messageId) addFileOperation(messageId, 'deleted', operation.path);
+            toast.success(`Deleted: ${fileName}`);
+          } else {
+            // File doesn't exist - show skipped
+            addActivityLog('skipped', operation.path);
+            if (messageId) addFileOperation(messageId, 'skipped', operation.path, 'File not found');
+            toast.warning(`Skipped: ${fileName} (file not found)`);
+          }
           return null;
+        }
         case 'read': {
           const content = readFileContent(operation.path);
           return content;
@@ -249,7 +322,7 @@ export function AIPanel() {
           return null;
       }
     },
-    [createFile, updateFile, deleteFile, addActivityLog, addFileOperation, openFile, readFileContent]
+    [createFile, updateFile, deleteFile, getFileByPath, addActivityLog, addFileOperation, openFile, readFileContent]
   );
 
   const processFileOperations = useCallback(

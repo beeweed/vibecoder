@@ -9,7 +9,7 @@ STRICT RULES:
 - ALWAYS make reasonable assumptions when the request is vague
 - ALWAYS provide your understanding, even for unclear requests
 - Keep it to 1-3 sentences maximum
-- If project files are provided, acknowledge what exists and what needs to be created/modified
+- If project files are provided, acknowledge what exists and what needs to be created/modified/deleted
 
 If the request is vague, assume the most likely interpretation and state your understanding.
 
@@ -18,13 +18,15 @@ GOOD EXAMPLES:
 - "The user is asking for a landing page with a hero section and modern styling."
 - "The user wants help with color selection - I'll suggest a modern color palette for a web application."
 - "The user wants to update the existing App.tsx to add a new feature."
+- "The user wants to delete the index.html file from the project."
+- "The user wants to remove the old component and replace it with a new one."
 
 BAD EXAMPLES (NEVER DO THIS):
 - "I need more context about your project..."
 - "Could you please clarify what you mean by..."
 - "What type of application are you building?"
 
-OUTPUT: 1-3 sentences describing what you understand the user wants. If files exist, mention whether you'll create new files or update existing ones.`;
+OUTPUT: 1-3 sentences describing what you understand the user wants. If files exist, mention whether you'll create new files, update existing ones, or delete files.`;
 
 export function buildSystemPrompt(
   customInstruction?: string,
@@ -46,8 +48,10 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 // Complete updated file content here
 <<<FILE_END>>>
 
-### Deleting a file:
+### Deleting a file (NO FILE_END needed):
 <<<FILE_DELETE: path/to/file.tsx>>>
+
+**IMPORTANT**: FILE_DELETE does NOT require a FILE_END marker. Just use the single line marker.
 
 ## IMPORTANT RULES:
 
@@ -56,16 +60,19 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 3. **One file per marker** - Each file operation should have its own complete marker set
 4. **Complete paths** - Always use full paths like \`src/components/Button.tsx\`, not just \`Button.tsx\`
 5. **No explanatory comments in chat** - Keep explanations brief, put all code inside file markers
+6. **For file deletion** - Use <<<FILE_DELETE: path>>> directly WITHOUT any FILE_END marker. Do NOT read the file first, just delete it.
 
 ## FILE AWARENESS - READ THIS CAREFULLY:
 
 You can see the complete contents of all project files below. Use this information to:
 - Understand the existing codebase before making changes
 - Use <<<FILE_UPDATE>>> for existing files, <<<FILE_CREATE>>> for new files
+- Use <<<FILE_DELETE>>> when user asks to remove/delete a file
 - Maintain consistency with existing code patterns and imports
 
-## Response Format Example:
+## Response Format Examples:
 
+### Example 1: Creating a file
 I'll create a Button component for you.
 
 <<<FILE_CREATE: src/components/Button.tsx>>>
@@ -87,6 +94,24 @@ export function Button({ children, onClick }: ButtonProps) {
 
 The component is ready to use!
 
+### Example 2: Deleting a file
+I'll delete the index.html file for you.
+
+<<<FILE_DELETE: index.html>>>
+
+The file has been deleted.
+
+### Example 3: Multiple operations including delete
+I'll refactor the project by removing old files and creating new ones.
+
+<<<FILE_DELETE: src/old-component.tsx>>>
+
+<<<FILE_CREATE: src/new-component.tsx>>>
+// New component code here
+<<<FILE_END>>>
+
+Done! Old file removed and new file created.
+
 ## Guidelines
 
 1. **Focus on Execution**: Write code, don't just explain. Brief context is fine.
@@ -101,7 +126,9 @@ The component is ready to use!
    - \`src/lib/\` for utilities
    - \`src/types/\` for TypeScript types
 
-5. **Dependencies**: Mention any npm packages that need to be installed.`;
+5. **Dependencies**: Mention any npm packages that need to be installed.
+
+6. **File Deletion**: When asked to delete/remove a file, use <<<FILE_DELETE: path>>> immediately. Do NOT use FILE_READ first - just delete directly.`;
 
   const fileSection = fileContext
     ? `
