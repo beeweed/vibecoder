@@ -1,5 +1,5 @@
 export interface ParsedFileOperation {
-  type: 'create' | 'update' | 'delete';
+  type: 'create' | 'update' | 'delete' | 'read';
   path: string;
   content?: string;
 }
@@ -19,6 +19,7 @@ export interface ParserState {
 const FILE_CREATE_PATTERN = /<<<\s*FILE_CREATE\s*:\s*([^>]+?)>>>|```\s*(?:tsx?|jsx?|[a-z]+)?\s*\n?\s*\/\/\s*FILE:\s*CREATE\s+([^\n]+)/i;
 const FILE_UPDATE_PATTERN = /<<<\s*FILE_UPDATE\s*:\s*([^>]+?)>>>|```\s*(?:tsx?|jsx?|[a-z]+)?\s*\n?\s*\/\/\s*FILE:\s*UPDATE\s+([^\n]+)/i;
 const FILE_DELETE_PATTERN = /<<<\s*FILE_DELETE\s*:\s*([^>]+?)>>>/i;
+const FILE_READ_PATTERN = /<<<\s*FILE_READ\s*:\s*([^>]+?)>>>/i;
 const FILE_END_PATTERN = /<<<\s*FILE_END\s*>>>|```\s*$/;
 
 // Detect partial markers that might be forming
@@ -107,6 +108,23 @@ export function parseChunk(
         
         newOperations.push({ type: 'delete', path });
         newState.buffer = newState.buffer.slice(matchIndex + deleteMatch[0].length);
+        matched = true;
+        continue;
+      }
+    }
+
+    // Check for FILE_READ marker (tool call)
+    const readMatch = newState.buffer.match(FILE_READ_PATTERN);
+    if (readMatch && !newState.currentOperation) {
+      const matchIndex = readMatch.index ?? 0;
+      const path = (readMatch[1] || '').trim();
+      
+      if (path) {
+        const textBefore = newState.buffer.slice(0, matchIndex);
+        displayText += filterPartialMarkers(textBefore);
+        
+        newOperations.push({ type: 'read', path });
+        newState.buffer = newState.buffer.slice(matchIndex + readMatch[0].length);
         matched = true;
         continue;
       }
@@ -224,7 +242,7 @@ function filterPartialMarkers(text: string): string {
   let filtered = text;
   
   // Remove complete markers that shouldn't be displayed
-  filtered = filtered.replace(/<<<\s*FILE_(?:CREATE|UPDATE|DELETE)\s*:\s*[^>]*>>>/gi, '');
+  filtered = filtered.replace(/<<<\s*FILE_(?:CREATE|UPDATE|DELETE|READ)\s*:\s*[^>]*>>>/gi, '');
   filtered = filtered.replace(/<<<\s*FILE_END\s*>>>/gi, '');
   
   // Remove partial markers at the end
@@ -237,7 +255,7 @@ function cleanDisplayText(text: string): string {
   let cleaned = text;
   
   // Remove any remaining file markers
-  cleaned = cleaned.replace(/<<<\s*FILE_(?:CREATE|UPDATE|DELETE)\s*:\s*[^>]*>>>/gi, '');
+  cleaned = cleaned.replace(/<<<\s*FILE_(?:CREATE|UPDATE|DELETE|READ)\s*:\s*[^>]*>>>/gi, '');
   cleaned = cleaned.replace(/<<<\s*FILE_END\s*>>>/gi, '');
   
   // Remove orphaned code fences that were part of file operations

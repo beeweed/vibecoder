@@ -207,8 +207,21 @@ export function AIPanel() {
     scrollToBottom();
   }, [messages]);
 
+  const getFileByPath = useFileSystemStore((s) => s.getFileByPath);
+
+  const readFileContent = useCallback(
+    (path: string): string => {
+      const file = getFileByPath(path);
+      if (file) {
+        return file.content;
+      }
+      return `[File not found: ${path}]`;
+    },
+    [getFileByPath]
+  );
+
   const executeFileOperation = useCallback(
-    (operation: ParsedFileOperation, messageId?: string) => {
+    (operation: ParsedFileOperation, messageId?: string): string | null => {
       const fileName = operation.path.split('/').pop() || operation.path;
 
       switch (operation.type) {
@@ -217,20 +230,39 @@ export function AIPanel() {
           addActivityLog('created', operation.path);
           if (messageId) addFileOperation(messageId, 'created', operation.path);
           openFile(operation.path, fileName);
-          break;
+          return null;
         case 'update':
           updateFile(operation.path, operation.content || '');
           addActivityLog('updated', operation.path);
           if (messageId) addFileOperation(messageId, 'updated', operation.path);
-          break;
+          return null;
         case 'delete':
           deleteFile(operation.path);
           addActivityLog('deleted', operation.path);
           if (messageId) addFileOperation(messageId, 'deleted', operation.path);
-          break;
+          return null;
+        case 'read': {
+          const content = readFileContent(operation.path);
+          return content;
+        }
+        default:
+          return null;
       }
     },
-    [createFile, updateFile, deleteFile, addActivityLog, addFileOperation, openFile]
+    [createFile, updateFile, deleteFile, addActivityLog, addFileOperation, openFile, readFileContent]
+  );
+
+  const processFileOperations = useCallback(
+    (operations: ParsedFileOperation[], messageId: string) => {
+      for (const op of operations) {
+        const result = executeFileOperation(op, messageId);
+        if (op.type === 'read' && result) {
+          const fileName = op.path.split('/').pop() || op.path;
+          appendToMessage(messageId, `\n\n📖 **Reading ${fileName}:**\n\`\`\`\n${result}\n\`\`\`\n\n`);
+        }
+      }
+    },
+    [executeFileOperation, appendToMessage]
   );
 
   const handleSubmit = async () => {
@@ -412,9 +444,7 @@ export function AIPanel() {
                 setCurrentFile(result.currentFilePath);
               }
 
-              for (const op of result.newOperations) {
-                executeFileOperation(op, messageId);
-              }
+              processFileOperations(result.newOperations, messageId);
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -423,7 +453,7 @@ export function AIPanel() {
                 appendToMessage(messageId, flushResult.displayText);
               }
               if (flushResult.incompleteOperation) {
-                executeFileOperation(flushResult.incompleteOperation, messageId);
+                processFileOperations([flushResult.incompleteOperation], messageId);
               }
             }
           } catch (e) {
@@ -552,9 +582,7 @@ export function AIPanel() {
                 setCurrentFile(result.currentFilePath);
               }
 
-              for (const op of result.newOperations) {
-                executeFileOperation(op, messageId);
-              }
+              processFileOperations(result.newOperations, messageId);
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -563,7 +591,7 @@ export function AIPanel() {
                 appendToMessage(messageId, flushResult.displayText);
               }
               if (flushResult.incompleteOperation) {
-                executeFileOperation(flushResult.incompleteOperation, messageId);
+                processFileOperations([flushResult.incompleteOperation], messageId);
               }
             }
           } catch (e) {
