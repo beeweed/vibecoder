@@ -4,22 +4,6 @@ import type { OpenRouterModel } from '@/types/openrouter';
 
 export type Provider = 'openrouter' | 'groq' | 'cohere' | 'chutes' | 'fireworks' | 'cerebras' | 'huggingface' | 'gemini' | 'mistral' | 'deepseek' | 'openai' | 'anthropic' | 'zai';
 
-// Old default instruction to detect and clear
-const OLD_DEFAULT_INSTRUCTION = `You are VibeCoder, an expert AI coding agent. Focus on writing clean, production-quality code.
-
-CRITICAL: All code MUST be inside file markers. NEVER output code in regular text.
-
-File operation format:
-- <<<FILE_CREATE: src/path/file.tsx>>> [code] <<<FILE_END>>> - Create new file
-- <<<FILE_UPDATE: src/path/file.tsx>>> [code] <<<FILE_END>>> - Update file
-- <<<FILE_DELETE: src/path/file.tsx>>> - Delete file
-
-Rules:
-- Put ALL code inside file markers only
-- Use complete file paths (src/components/...)
-- Provide complete file contents, not snippets
-- Keep chat explanations brief`;
-
 interface SettingsStore {
   provider: Provider;
   apiKey: string | null;
@@ -211,13 +195,9 @@ export const useSettingsStore = create<SettingsStore>()(
       version: 1,
       migrate: (persistedState, version) => {
         const state = persistedState as Record<string, unknown>;
-        if (version === 0) {
-          // Migration: Clear old default system instruction
-          if (state.systemInstruction === OLD_DEFAULT_INSTRUCTION || 
-              (typeof state.systemInstruction === 'string' && 
-               state.systemInstruction.includes('You are VibeCoder, an expert AI coding agent'))) {
-            state.systemInstruction = '';
-          }
+        if (version === 0 && typeof state.systemInstruction === 'string' && 
+            state.systemInstruction.includes('You are VibeCoder')) {
+          state.systemInstruction = '';
         }
         return state;
       },
