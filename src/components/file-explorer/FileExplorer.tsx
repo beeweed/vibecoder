@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import { useEditorStore } from '@/stores/editorStore';
@@ -22,6 +24,8 @@ interface FileNodeProps {
 function FileNode({ node, depth }: FileNodeProps) {
   const toggleFolder = useFileSystemStore((s) => s.toggleFolder);
   const openFile = useEditorStore((s) => s.openFile);
+  const deleteFile = useFileSystemStore((s) => s.deleteFile);
+  const deleteFolder = useFileSystemStore((s) => s.deleteFolder);
   const currentFile = useAgentStore((s) => s.currentFile);
 
   const isCurrentFile = currentFile === node.path;
@@ -33,6 +37,15 @@ function FileNode({ node, depth }: FileNodeProps) {
       toggleFolder(node.id);
     } else {
       openFile(node.path, node.name);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (node.type === 'folder') {
+      deleteFolder(node.path);
+    } else {
+      deleteFile(node.path);
     }
   };
 
@@ -87,6 +100,14 @@ function FileNode({ node, depth }: FileNodeProps) {
             )}
           />
         )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={handleDelete}
+        >
+          <Trash2 className="w-3 h-3 text-[#7a7a7c] hover:text-red-400" />
+        </Button>
       </motion.div>
 
       <AnimatePresence>

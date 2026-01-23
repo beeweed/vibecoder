@@ -27,7 +27,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import type { VirtualFile } from '@/types/files';
-import type { FileOperation, FileRead } from '@/types/chat';
+import type { FileOperation } from '@/types/chat';
 import { useEditorStore } from '@/stores/editorStore';
 import {
   createParser,
@@ -37,80 +37,8 @@ import {
 } from '@/lib/parser';
 import { buildFileTreeContext } from '@/lib/systemPrompt';
 import { cn } from '@/lib/utils';
-import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
-
-function FileReadsInline({ 
-  fileReads,
-}: { 
-  fileReads: FileRead[];
-}) {
-  const [showAll, setShowAll] = useState(false);
-  const openFile = useEditorStore((s) => s.openFile);
-  
-  if (fileReads.length === 0) return null;
-  
-  const displayedReads = showAll ? fileReads : fileReads.slice(0, 3);
-  const hasMore = fileReads.length > 3;
-
-  const handleFileClick = (read: FileRead) => {
-    openFile(read.path, read.fileName);
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -5 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-wrap items-center gap-2 py-2"
-    >
-      <span className="text-xs text-[#7a7a7c] flex items-center gap-1">
-        <Eye className="w-3 h-3" />
-        Read files:
-      </span>
-      {displayedReads.map((read) => (
-        <button
-          key={read.id}
-          type="button"
-          onClick={() => handleFileClick(read)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#1e3a5f] hover:bg-[#264b77] transition-colors text-xs group border border-[#3a5a8f]"
-        >
-          <Eye className="w-3 h-3 text-blue-400" />
-          <span className="text-blue-300 group-hover:underline">{read.fileName}</span>
-          {read.status === 'reading' && (
-            <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
-          )}
-          {read.status === 'done' && (
-            <CheckCircle2 className="w-3 h-3 text-green-400" />
-          )}
-          {read.status === 'error' && (
-            <AlertCircle className="w-3 h-3 text-red-400" />
-          )}
-        </button>
-      ))}
-      
-      {hasMore && !showAll && (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          className="px-2 py-1 rounded-md border border-[#3a5a8f] hover:bg-[#1e3a5f] transition-colors text-xs text-blue-300"
-        >
-          +{fileReads.length - 3} more
-        </button>
-      )}
-      
-      {showAll && hasMore && (
-        <button
-          type="button"
-          onClick={() => setShowAll(false)}
-          className="px-2 py-1 rounded-md border border-[#3a5a8f] hover:bg-[#1e3a5f] transition-colors text-xs text-blue-300"
-        >
-          Show less
-        </button>
-      )}
-    </motion.div>
-  );
-}
 
 function FileOperationsInline({ 
   operations, 
@@ -135,28 +63,7 @@ function FileOperationsInline({
   };
 
   const handleFileClick = (op: FileOperation) => {
-    if (op.action !== 'deleted') {
-      openFile(op.filePath, op.fileName);
-    }
-  };
-
-  const getOperationStyles = (action: string) => {
-    if (action === 'deleted') {
-      return {
-        bg: 'bg-red-900/30 border border-red-800/50',
-        hover: 'hover:bg-red-900/50',
-        iconColor: 'text-red-400',
-        labelColor: 'text-red-400',
-        nameColor: 'text-red-300',
-      };
-    }
-    return {
-      bg: 'bg-[#272729]',
-      hover: 'hover:bg-[#3a3a3c]',
-      iconColor: 'text-[#9a9a9c]',
-      labelColor: 'text-[#9a9a9c]',
-      nameColor: 'text-[#dcdcde]',
-    };
+    openFile(op.filePath, op.fileName);
   };
 
   return (
@@ -165,36 +72,21 @@ function FileOperationsInline({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-wrap items-center gap-2 pt-1"
     >
-      {displayedOps.map((op) => {
-        const styles = getOperationStyles(op.action);
-        const isDeleted = op.action === 'deleted';
-        
-        return (
-          <button
-            key={op.id}
-            type="button"
-            onClick={() => handleFileClick(op)}
-            className={cn(
-              'flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-xs group',
-              styles.bg,
-              styles.hover,
-              isDeleted && 'cursor-default'
-            )}
-          >
-            <FileCode className={cn('w-3.5 h-3.5', styles.iconColor)} />
-            <span className={styles.labelColor}>{getActionLabel(op.action)}</span>
-            <span className={cn(styles.nameColor, !isDeleted && 'group-hover:underline', isDeleted && 'line-through')}>
-              {op.fileName}
-            </span>
-            {isStreaming && op === operations[operations.length - 1] && (
-              <Loader2 className={cn('w-3 h-3 animate-spin', styles.iconColor)} />
-            )}
-            {isDeleted && !isStreaming && (
-              <CheckCircle2 className="w-3 h-3 text-red-400" />
-            )}
-          </button>
-        );
-      })}
+      {displayedOps.map((op) => (
+        <button
+          key={op.id}
+          type="button"
+          onClick={() => handleFileClick(op)}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#272729] hover:bg-[#3a3a3c] transition-colors text-xs group"
+        >
+          <FileCode className="w-3.5 h-3.5 text-[#9a9a9c]" />
+          <span className="text-[#9a9a9c]">{getActionLabel(op.action)}</span>
+          <span className="text-[#dcdcde] group-hover:underline">{op.fileName}</span>
+          {isStreaming && op === operations[operations.length - 1] && (
+            <Loader2 className="w-3 h-3 animate-spin text-[#9a9a9c]" />
+          )}
+        </button>
+      ))}
       
       {hasMore && !showAll && (
         <button
@@ -253,8 +145,6 @@ export function AIPanel() {
   const markMessageCancelled = useChatStore((s) => s.markMessageCancelled);
   const clearCancelled = useChatStore((s) => s.clearCancelled);
   const addFileOperation = useChatStore((s) => s.addFileOperation);
-  const addFileRead = useChatStore((s) => s.addFileRead);
-  const updateFileReadStatus = useChatStore((s) => s.updateFileReadStatus);
 
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
@@ -414,15 +304,9 @@ export function AIPanel() {
 
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
-      
-      const fileStructure = buildFileTreeContext(
+      const fileContext = buildFileTreeContext(
         files.map((f) => ({ path: f.path, content: f.content }))
       );
-      
-      const fileContents: Record<string, string> = {};
-      for (const file of files) {
-        fileContents[file.path] = file.content;
-      }
 
       // ==========================================
       // PHASE 1: Thinking / Reasoning (Streaming)
@@ -437,7 +321,7 @@ export function AIPanel() {
           model: selectedModel,
           apiKey: activeApiKey,
           provider,
-          fileContext: fileStructure,
+          fileContext,
         }),
         signal: abortController.signal,
       });
@@ -447,6 +331,7 @@ export function AIPanel() {
         throw new Error(error.error || 'Failed to get thinking response');
       }
 
+      // Stream the thinking response
       const thinkReader = thinkResponse.body?.getReader();
       const thinkDecoder = new TextDecoder();
 
@@ -487,12 +372,13 @@ export function AIPanel() {
         }
       }
 
+      // Finalize thinking
       setMessageThinking(userMessageId, { reasoning: fullReasoning, isStreaming: false });
       finalizeThinking(userMessageId);
       setThinking(false);
 
       // ==========================================
-      // PHASE 2: Coding / Execution (with file_read tool)
+      // PHASE 2: Coding / Execution
       // ==========================================
       setStatus('writing');
 
@@ -511,8 +397,7 @@ export function AIPanel() {
           temperature,
           maxTokens,
           systemInstruction,
-          fileStructure,
-          fileContents,
+          fileContext,
         }),
         signal: abortController.signal,
       });
@@ -560,10 +445,6 @@ export function AIPanel() {
               }
 
               processFileOperations(result.newOperations, messageId);
-            } else if (data.type === 'tool_call' && data.tool === 'file_read') {
-              addFileRead(messageId, data.path);
-            } else if (data.type === 'tool_result' && data.tool === 'file_read') {
-              updateFileReadStatus(messageId, data.path, data.success ? 'done' : 'error');
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -630,15 +511,9 @@ export function AIPanel() {
 
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
-      
-      const fileStructure = buildFileTreeContext(
+      const fileContext = buildFileTreeContext(
         files.map((f) => ({ path: f.path, content: f.content }))
       );
-      
-      const fileContents: Record<string, string> = {};
-      for (const file of files) {
-        fileContents[file.path] = file.content;
-      }
 
       const messageId = startAssistantMessage();
       currentAssistantMessageIdRef.current = messageId;
@@ -660,8 +535,7 @@ export function AIPanel() {
           temperature,
           maxTokens,
           systemInstruction,
-          fileStructure,
-          fileContents,
+          fileContext,
         }),
         signal: abortController.signal,
       });
@@ -709,10 +583,6 @@ export function AIPanel() {
               }
 
               processFileOperations(result.newOperations, messageId);
-            } else if (data.type === 'tool_call' && data.tool === 'file_read') {
-              addFileRead(messageId, data.path);
-            } else if (data.type === 'tool_result' && data.tool === 'file_read') {
-              updateFileReadStatus(messageId, data.path, data.success ? 'done' : 'error');
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -794,7 +664,7 @@ export function AIPanel() {
             </div>
           )}
 
-          {messages.map((message, messageIndex) => (
+          {messages.map((message) => (
             <motion.div
               key={message.id}
               initial={{ opacity: 0, y: 10 }}
@@ -872,11 +742,6 @@ export function AIPanel() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* Show file reads (persists in message) */}
-                  {message.fileReads && message.fileReads.length > 0 && (
-                    <FileReadsInline fileReads={message.fileReads} />
-                  )}
-                  
                   <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
                     <ReactMarkdown
                       components={{
