@@ -51,20 +51,7 @@ interface SettingsStore {
   getActiveApiKey: () => string | null;
 }
 
-const DEFAULT_SYSTEM_INSTRUCTION = `You are VibeCoder, an expert AI coding agent. Focus on writing clean, production-quality code.
-
-CRITICAL: All code MUST be inside file markers. NEVER output code in regular text.
-
-File operation format:
-- <<<FILE_CREATE: src/path/file.tsx>>> [code] <<<FILE_END>>> - Create new file
-- <<<FILE_UPDATE: src/path/file.tsx>>> [code] <<<FILE_END>>> - Update file
-- <<<FILE_DELETE: src/path/file.tsx>>> - Delete file
-
-Rules:
-- Put ALL code inside file markers only
-- Use complete file paths (src/components/...)
-- Provide complete file contents, not snippets
-- Keep chat explanations brief`;
+const DEFAULT_SYSTEM_INSTRUCTION = '';
 
 const getDefaultModel = (provider: Provider): string => {
   switch (provider) {
