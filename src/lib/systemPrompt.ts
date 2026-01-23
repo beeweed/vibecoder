@@ -26,9 +26,27 @@ BAD EXAMPLES (NEVER DO THIS):
 
 OUTPUT: 1-3 sentences describing what you understand the user wants. If files exist, mention whether you'll create new files or update existing ones.`;
 
+export const FILE_READ_TOOL_DEFINITION = {
+  type: 'function',
+  function: {
+    name: 'file_read',
+    description: 'Read the contents of a specific file from the project. Use this tool when you need to see the current content of an existing file before modifying it or understanding its structure.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'The full path to the file to read (e.g., "src/components/Button.tsx")'
+        }
+      },
+      required: ['path']
+    }
+  }
+};
+
 export function buildSystemPrompt(
   customInstruction?: string,
-  fileContext?: string
+  fileStructure?: string
 ): string {
   const basePrompt = `You are VibeCoder, an expert AI coding agent. Your role is to help users build applications by writing clean, production-quality code.
 
@@ -57,12 +75,17 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 4. **Complete paths** - Always use full paths like \`src/components/Button.tsx\`, not just \`Button.tsx\`
 5. **No explanatory comments in chat** - Keep explanations brief, put all code inside file markers
 
-## FILE AWARENESS - READ THIS CAREFULLY:
+## FILE READING - IMPORTANT FOR CONTEXT MANAGEMENT:
 
-You can see the complete contents of all project files below. Use this information to:
-- Understand the existing codebase before making changes
-- Use <<<FILE_UPDATE>>> for existing files, <<<FILE_CREATE>>> for new files
-- Maintain consistency with existing code patterns and imports
+You can see the project FILE STRUCTURE below (file names and paths only, NOT contents).
+To read the contents of any file, you MUST use the \`file_read\` tool.
+
+**When to use file_read:**
+- Before updating an existing file (to see current content)
+- When you need to understand how a component works
+- To check imports, types, or existing patterns
+
+**Best practice:** Only read files you actually need. This saves context and improves performance.
 
 ## Response Format Example:
 
@@ -103,14 +126,14 @@ The component is ready to use!
 
 5. **Dependencies**: Mention any npm packages that need to be installed.`;
 
-  const fileSection = fileContext
+  const fileSection = fileStructure
     ? `
 
 ---
 
-# CURRENT PROJECT FILES
+# PROJECT FILE STRUCTURE (use file_read tool to view contents)
 
-${fileContext}
+${fileStructure}
 
 ---
 `
@@ -118,7 +141,7 @@ ${fileContext}
 
 ---
 
-# CURRENT PROJECT FILES
+# PROJECT FILE STRUCTURE
 
 No files have been created yet. This is a new project.
 
@@ -138,6 +161,42 @@ ${customInstruction}
 }
 
 export function buildFileTreeContext(
+  files: Array<{ path: string; content: string }>
+): string {
+  if (files.length === 0) {
+    return '';
+  }
+
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  
+  const folders = new Map<string, string[]>();
+  
+  for (const file of sortedFiles) {
+    const parts = file.path.split('/');
+    const fileName = parts.pop() || file.path;
+    const folderPath = parts.join('/') || '.';
+    
+    if (!folders.has(folderPath)) {
+      folders.set(folderPath, []);
+    }
+    folders.get(folderPath)?.push(fileName);
+  }
+  
+  const lines: string[] = [];
+  
+  const sortedFolders = Array.from(folders.keys()).sort();
+  for (const folder of sortedFolders) {
+    lines.push(`📂 ${folder}/`);
+    const filesInFolder = folders.get(folder) || [];
+    for (const file of filesInFolder) {
+      lines.push(`  ├── ${file}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+export function buildFileTreeWithContents(
   files: Array<{ path: string; content: string }>
 ): string {
   if (files.length === 0) {
