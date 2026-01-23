@@ -36,11 +36,6 @@ export function buildSystemPrompt(
 
 You MUST use these EXACT markers for all file operations. Code should ONLY appear inside file markers, NEVER in regular text.
 
-### Reading a file (TOOL - Use before updating existing files):
-<<<FILE_READ: path/to/file.tsx>>>
-
-When you use FILE_READ, the system will return the file contents in the next message. Wait for the response before proceeding.
-
 ### Creating a new file:
 <<<FILE_CREATE: path/to/file.tsx>>>
 // Your complete code here
@@ -61,23 +56,13 @@ When you use FILE_READ, the system will return the file contents in the next mes
 3. **One file per marker** - Each file operation should have its own complete marker set
 4. **Complete paths** - Always use full paths like \`src/components/Button.tsx\`, not just \`Button.tsx\`
 5. **No explanatory comments in chat** - Keep explanations brief, put all code inside file markers
-6. **READ before UPDATE** - Always use <<<FILE_READ: path>>> before updating an existing file
 
 ## FILE AWARENESS - READ THIS CAREFULLY:
 
-You can see the project file structure below. To view file contents, use the FILE_READ tool.
-
-**WORKFLOW:**
-1. Check the file structure to see what files exist
-2. Use <<<FILE_READ: path>>> to read any file you need to understand or update
-3. Use <<<FILE_CREATE: path>>> for new files
-4. Use <<<FILE_UPDATE: path>>> for existing files (after reading them first)
-
-**IMPORTANT:**
-- Before creating new files, CHECK if a similar file already exists in the structure
-- When updating files, READ the current content first using FILE_READ
-- Use consistent naming and import paths based on existing files
-- If a file exists, use <<<FILE_UPDATE>>> instead of <<<FILE_CREATE>>>
+You can see the complete contents of all project files below. Use this information to:
+- Understand the existing codebase before making changes
+- Use <<<FILE_UPDATE>>> for existing files, <<<FILE_CREATE>>> for new files
+- Maintain consistency with existing code patterns and imports
 
 ## Response Format Example:
 
@@ -160,41 +145,17 @@ export function buildFileTreeContext(
   }
 
   const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
-  
-  // Build tree structure
-  const treeLines: string[] = ['## 📁 Project File Structure\n'];
-  
-  // Group files by directory
-  const directories = new Map<string, string[]>();
-  
+  const lines: string[] = [];
+
   for (const file of sortedFiles) {
-    const parts = file.path.split('/');
-    const fileName = parts.pop() || file.path;
-    const dirPath = parts.length > 0 ? parts.join('/') : '/';
-    
-    if (!directories.has(dirPath)) {
-      directories.set(dirPath, []);
-    }
-    directories.get(dirPath)?.push(fileName);
+    lines.push(`### 📄 ${file.path}`);
+    lines.push('```');
+    lines.push(file.content);
+    lines.push('```');
+    lines.push('');
   }
-  
-  // Create tree view
-  treeLines.push('```');
-  for (const [dir, fileNames] of directories) {
-    if (dir !== '/') {
-      treeLines.push(`📂 ${dir}/`);
-    }
-    for (const fileName of fileNames) {
-      const indent = dir === '/' ? '' : '  ';
-      treeLines.push(`${indent}├── ${fileName}`);
-    }
-  }
-  treeLines.push('```\n');
-  
-  treeLines.push(`Total: ${files.length} file(s)\n`);
-  treeLines.push('Use <<<FILE_READ: path/to/file>>> to view file contents before updating.\n');
-  
-  return treeLines.join('\n');
+
+  return lines.join('\n');
 }
 
 export function buildFileTreeSummary(
