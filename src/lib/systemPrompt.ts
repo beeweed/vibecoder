@@ -9,6 +9,7 @@ STRICT RULES:
 - ALWAYS make reasonable assumptions when the request is vague
 - ALWAYS provide your understanding, even for unclear requests
 - Keep it to 1-3 sentences maximum
+- If project files are provided, acknowledge what exists and what needs to be created/modified
 
 If the request is vague, assume the most likely interpretation and state your understanding.
 
@@ -16,17 +17,18 @@ GOOD EXAMPLES:
 - "The user wants to create a React component for a button with hover effects."
 - "The user is asking for a landing page with a hero section and modern styling."
 - "The user wants help with color selection - I'll suggest a modern color palette for a web application."
+- "The user wants to update the existing App.tsx to add a new feature."
 
 BAD EXAMPLES (NEVER DO THIS):
 - "I need more context about your project..."
 - "Could you please clarify what you mean by..."
 - "What type of application are you building?"
 
-OUTPUT: 1-3 sentences describing what you understand the user wants. Make assumptions if needed.`;
+OUTPUT: 1-3 sentences describing what you understand the user wants. If files exist, mention whether you'll create new files or update existing ones.`;
 
 export function buildSystemPrompt(
   customInstruction?: string,
-  fileTree?: string
+  fileContext?: string
 ): string {
   const basePrompt = `You are VibeCoder, an expert AI coding agent. Your role is to help users build applications by writing clean, production-quality code.
 
@@ -54,6 +56,19 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 3. **One file per marker** - Each file operation should have its own complete marker set
 4. **Complete paths** - Always use full paths like \`src/components/Button.tsx\`, not just \`Button.tsx\`
 5. **No explanatory comments in chat** - Keep explanations brief, put all code inside file markers
+
+## FILE AWARENESS - READ THIS CAREFULLY:
+
+You have access to the complete project file system. Below you will see:
+1. **File Structure** - A tree view of all files in the project
+2. **File Contents** - The complete content of each file
+
+**IMPORTANT:**
+- Before creating new files, CHECK if a similar file already exists
+- When updating files, READ the current content first and preserve existing functionality
+- Use consistent naming and import paths based on existing files
+- If a file exists, use <<<FILE_UPDATE>>> instead of <<<FILE_CREATE>>>
+- Reference existing components, utilities, and types from the project
 
 ## Response Format Example:
 
@@ -94,16 +109,27 @@ The component is ready to use!
 
 5. **Dependencies**: Mention any npm packages that need to be installed.`;
 
-  const contextSection = fileTree
+  const fileSection = fileContext
     ? `
 
-## Current Project Structure
+---
 
-\`\`\`
-${fileTree}
-\`\`\`
+# CURRENT PROJECT FILES
+
+${fileContext}
+
+---
 `
-    : '';
+    : `
+
+---
+
+# CURRENT PROJECT FILES
+
+No files have been created yet. This is a new project.
+
+---
+`;
 
   const customSection = customInstruction
     ? `
@@ -114,21 +140,90 @@ ${customInstruction}
 `
     : '';
 
-  return basePrompt + contextSection + customSection;
+  return basePrompt + fileSection + customSection;
 }
 
 export function buildFileTreeContext(
   files: Array<{ path: string; content: string }>
 ): string {
-  const tree: string[] = [];
-  const paths = files.map((f) => f.path).sort();
-
-  for (const path of paths) {
-    const depth = path.split('/').length - 1;
-    const indent = '  '.repeat(depth);
-    const name = path.split('/').pop() || path;
-    tree.push(`${indent}${name}`);
+  if (files.length === 0) {
+    return '';
   }
 
-  return tree.join('\n');
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  
+  // Build tree structure
+  const treeLines: string[] = ['## 📁 Project File Structure\n'];
+  
+  // Group files by directory
+  const directories = new Map<string, string[]>();
+  
+  for (const file of sortedFiles) {
+    const parts = file.path.split('/');
+    const fileName = parts.pop() || file.path;
+    const dirPath = parts.length > 0 ? parts.join('/') : '/';
+    
+    if (!directories.has(dirPath)) {
+      directories.set(dirPath, []);
+    }
+    directories.get(dirPath)?.push(fileName);
+  }
+  
+  // Create tree view
+  treeLines.push('```');
+  for (const [dir, fileNames] of directories) {
+    if (dir !== '/') {
+      treeLines.push(`📂 ${dir}/`);
+    }
+    for (const fileName of fileNames) {
+      const indent = dir === '/' ? '' : '  ';
+      treeLines.push(`${indent}├── ${fileName}`);
+    }
+  }
+  treeLines.push('```\n');
+  
+  // Add file contents
+  treeLines.push('## 📄 File Contents\n');
+  treeLines.push('Below are all the files in the project with their complete contents:\n');
+  
+  for (const file of sortedFiles) {
+    const ext = file.path.split('.').pop() || '';
+    const langMap: Record<string, string> = {
+      'ts': 'typescript',
+      'tsx': 'tsx',
+      'js': 'javascript',
+      'jsx': 'jsx',
+      'css': 'css',
+      'html': 'html',
+      'json': 'json',
+      'md': 'markdown',
+      'py': 'python',
+    };
+    const lang = langMap[ext] || ext;
+    
+    treeLines.push(`### 📄 ${file.path}\n`);
+    treeLines.push(`\`\`\`${lang}`);
+    treeLines.push(file.content);
+    treeLines.push('```\n');
+  }
+  
+  return treeLines.join('\n');
+}
+
+export function buildFileTreeSummary(
+  files: Array<{ path: string; content: string }>
+): string {
+  if (files.length === 0) {
+    return 'No files created yet.';
+  }
+
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const lines: string[] = [];
+  
+  for (const file of sortedFiles) {
+    const lineCount = file.content.split('\n').length;
+    lines.push(`- ${file.path} (${lineCount} lines)`);
+  }
+  
+  return lines.join('\n');
 }
