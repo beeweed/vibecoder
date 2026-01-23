@@ -27,7 +27,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import type { VirtualFile } from '@/types/files';
-import type { FileOperation } from '@/types/chat';
+import type { FileOperation, FileRead } from '@/types/chat';
 import { useEditorStore } from '@/stores/editorStore';
 import {
   createParser,
@@ -41,29 +41,21 @@ import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
-interface FileRead {
-  path: string;
-  status: 'reading' | 'done' | 'error';
-}
-
 function FileReadsInline({ 
   fileReads,
-  isStreaming
 }: { 
   fileReads: FileRead[];
-  isStreaming?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   const openFile = useEditorStore((s) => s.openFile);
   
   if (fileReads.length === 0) return null;
   
-  const displayedReads = showAll ? fileReads : fileReads.slice(-3);
+  const displayedReads = showAll ? fileReads : fileReads.slice(0, 3);
   const hasMore = fileReads.length > 3;
 
   const handleFileClick = (read: FileRead) => {
-    const fileName = read.path.split('/').pop() || read.path;
-    openFile(read.path, fileName);
+    openFile(read.path, read.fileName);
   };
 
   return (
@@ -74,31 +66,28 @@ function FileReadsInline({
     >
       <span className="text-xs text-[#7a7a7c] flex items-center gap-1">
         <Eye className="w-3 h-3" />
-        Reading:
+        Read files:
       </span>
-      {displayedReads.map((read, index) => {
-        const fileName = read.path.split('/').pop() || read.path;
-        return (
-          <button
-            key={`${read.path}-${index}`}
-            type="button"
-            onClick={() => handleFileClick(read)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#1e3a5f] hover:bg-[#264b77] transition-colors text-xs group border border-[#3a5a8f]"
-          >
-            <Eye className="w-3 h-3 text-blue-400" />
-            <span className="text-blue-300 group-hover:underline">{fileName}</span>
-            {read.status === 'reading' && (
-              <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
-            )}
-            {read.status === 'done' && (
-              <CheckCircle2 className="w-3 h-3 text-green-400" />
-            )}
-            {read.status === 'error' && (
-              <AlertCircle className="w-3 h-3 text-red-400" />
-            )}
-          </button>
-        );
-      })}
+      {displayedReads.map((read) => (
+        <button
+          key={read.id}
+          type="button"
+          onClick={() => handleFileClick(read)}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#1e3a5f] hover:bg-[#264b77] transition-colors text-xs group border border-[#3a5a8f]"
+        >
+          <Eye className="w-3 h-3 text-blue-400" />
+          <span className="text-blue-300 group-hover:underline">{read.fileName}</span>
+          {read.status === 'reading' && (
+            <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+          )}
+          {read.status === 'done' && (
+            <CheckCircle2 className="w-3 h-3 text-green-400" />
+          )}
+          {read.status === 'error' && (
+            <AlertCircle className="w-3 h-3 text-red-400" />
+          )}
+        </button>
+      ))}
       
       {hasMore && !showAll && (
         <button
@@ -228,6 +217,8 @@ export function AIPanel() {
   const markMessageCancelled = useChatStore((s) => s.markMessageCancelled);
   const clearCancelled = useChatStore((s) => s.clearCancelled);
   const addFileOperation = useChatStore((s) => s.addFileOperation);
+  const addFileRead = useChatStore((s) => s.addFileRead);
+  const updateFileReadStatus = useChatStore((s) => s.updateFileReadStatus);
 
   const provider = useSettingsStore((s) => s.provider);
   const apiKey = useSettingsStore((s) => s.apiKey);
@@ -348,8 +339,6 @@ export function AIPanel() {
     [executeFileOperation, appendToMessage]
   );
 
-  const [currentFileReads, setCurrentFileReads] = useState<FileRead[]>([]);
-
   const handleSubmit = async () => {
     if (!input.trim() || isGenerating) return;
 
@@ -379,7 +368,6 @@ export function AIPanel() {
     setInput('');
     const userMessageId = addUserMessage(userMessage);
     clearLastOperations();
-    setCurrentFileReads([]);
 
     const abortController = new AbortController();
     setGenerating(true, abortController);
@@ -537,15 +525,9 @@ export function AIPanel() {
 
               processFileOperations(result.newOperations, messageId);
             } else if (data.type === 'tool_call' && data.tool === 'file_read') {
-              setCurrentFileReads(prev => [...prev, { path: data.path, status: 'reading' }]);
+              addFileRead(messageId, data.path);
             } else if (data.type === 'tool_result' && data.tool === 'file_read') {
-              setCurrentFileReads(prev => 
-                prev.map(fr => 
-                  fr.path === data.path && fr.status === 'reading'
-                    ? { ...fr, status: data.success ? 'done' : 'error' }
-                    : fr
-                )
-              );
+              updateFileReadStatus(messageId, data.path, data.success ? 'done' : 'error');
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -605,7 +587,6 @@ export function AIPanel() {
     if (isGenerating || !activeApiKey) return;
 
     clearCancelled();
-    setCurrentFileReads([]);
 
     const abortController = new AbortController();
     setGenerating(true, abortController);
@@ -693,15 +674,9 @@ export function AIPanel() {
 
               processFileOperations(result.newOperations, messageId);
             } else if (data.type === 'tool_call' && data.tool === 'file_read') {
-              setCurrentFileReads(prev => [...prev, { path: data.path, status: 'reading' }]);
+              addFileRead(messageId, data.path);
             } else if (data.type === 'tool_result' && data.tool === 'file_read') {
-              setCurrentFileReads(prev => 
-                prev.map(fr => 
-                  fr.path === data.path && fr.status === 'reading'
-                    ? { ...fr, status: data.success ? 'done' : 'error' }
-                    : fr
-                )
-              );
+              updateFileReadStatus(messageId, data.path, data.success ? 'done' : 'error');
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -861,9 +836,9 @@ export function AIPanel() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* Show file reads for the current streaming message */}
-                  {message.isStreaming && currentFileReads.length > 0 && (
-                    <FileReadsInline fileReads={currentFileReads} isStreaming={true} />
+                  {/* Show file reads (persists in message) */}
+                  {message.fileReads && message.fileReads.length > 0 && (
+                    <FileReadsInline fileReads={message.fileReads} />
                   )}
                   
                   <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>

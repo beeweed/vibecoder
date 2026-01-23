@@ -12,6 +12,13 @@ export interface FileOperation {
   fileName: string;
 }
 
+export interface FileRead {
+  id: string;
+  path: string;
+  fileName: string;
+  status: 'reading' | 'done' | 'error';
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -22,6 +29,7 @@ export interface ChatMessage {
   thinking?: ThinkingState;
   wasCancelled?: boolean;
   fileOperations?: FileOperation[];
+  fileReads?: FileRead[];
 }
 
 export interface ChatState {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingState, FileOperation } from '@/types/chat';
+import type { ChatMessage, ThinkingState, FileOperation, FileRead } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -25,6 +25,8 @@ interface ChatStore {
   markMessageCancelled: (messageId: string) => void;
   clearCancelled: () => void;
   addFileOperation: (messageId: string, action: 'created' | 'updated' | 'deleted', filePath: string) => void;
+  addFileRead: (messageId: string, path: string) => void;
+  updateFileReadStatus: (messageId: string, path: string, status: 'done' | 'error') => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -176,6 +178,40 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: state.messages.map((m) =>
         m.id === messageId
           ? { ...m, fileOperations: [...(m.fileOperations || []), operation] }
+          : m
+      ),
+    }));
+  },
+
+  addFileRead: (messageId: string, path: string) => {
+    const fileName = path.split('/').pop() || path;
+    const fileRead: FileRead = {
+      id: uuidv4(),
+      path,
+      fileName,
+      status: 'reading',
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, fileReads: [...(m.fileReads || []), fileRead] }
+          : m
+      ),
+    }));
+  },
+
+  updateFileReadStatus: (messageId: string, path: string, status: 'done' | 'error') => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              fileReads: (m.fileReads || []).map((fr) =>
+                fr.path === path && fr.status === 'reading'
+                  ? { ...fr, status }
+                  : fr
+              ),
+            }
           : m
       ),
     }));
