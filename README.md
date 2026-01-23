@@ -20,8 +20,7 @@ Planning:
 - git push. 
 - git repository clone. 
 - Implement sub agents. 
-- deploy generated applications on vercel, Netlify, other.
-- implement file-read tool. 
+- deploy generated applications on vercel, Netlify, other. 
 - implement file-content fetch tool. (for image upload)
 - move single llm calls to agent base system. 
 - file upload with prompt. 
