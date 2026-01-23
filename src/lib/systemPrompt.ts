@@ -52,7 +52,7 @@ export function buildSystemPrompt(
 
 ## CRITICAL: File Operations Format
 
-You MUST use these EXACT markers for all file operations. Code should ONLY appear inside file markers, NEVER in regular text.
+You MUST use these EXACT markers for all file operations. These are TEXT MARKERS you output directly (NOT tool calls).
 
 ### Creating a new file:
 <<<FILE_CREATE: path/to/file.tsx>>>
@@ -64,8 +64,13 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 // Complete updated file content here
 <<<FILE_END>>>
 
-### Deleting a file:
+### Deleting a file (NO FILE_END needed):
 <<<FILE_DELETE: path/to/file.tsx>>>
+
+**DELETE EXAMPLE:** To delete index.html, simply output:
+<<<FILE_DELETE: index.html>>>
+
+The file will be immediately removed. Do NOT use file_read before deleting - just delete it directly.
 
 ## IMPORTANT RULES:
 
@@ -75,15 +80,22 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 4. **Complete paths** - Always use full paths like \`src/components/Button.tsx\`, not just \`Button.tsx\`
 5. **No explanatory comments in chat** - Keep explanations brief, put all code inside file markers
 
-## FILE READING - IMPORTANT FOR CONTEXT MANAGEMENT:
+## FILE READING vs FILE DELETION - IMPORTANT DIFFERENCE:
+
+### Reading files (uses tool):
+To READ a file's contents, use the \`file_read\` tool (a function call).
+- Use when you need to see file content before updating
+- Use to understand existing code structure
+
+### Deleting files (uses marker - NOT a tool):
+To DELETE a file, output the text marker directly in your response:
+<<<FILE_DELETE: path/to/file.tsx>>>
+
+**DO NOT use file_read before deleting.** Just output the FILE_DELETE marker directly.
+
+## PROJECT FILE STRUCTURE:
 
 You can see the project FILE STRUCTURE below (file names and paths only, NOT contents).
-To read the contents of any file, you MUST use the \`file_read\` tool.
-
-**When to use file_read:**
-- Before updating an existing file (to see current content)
-- When you need to understand how a component works
-- To check imports, types, or existing patterns
 
 **Best practice:** Only read files you actually need. This saves context and improves performance.
 
