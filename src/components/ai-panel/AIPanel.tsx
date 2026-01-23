@@ -135,7 +135,28 @@ function FileOperationsInline({
   };
 
   const handleFileClick = (op: FileOperation) => {
-    openFile(op.filePath, op.fileName);
+    if (op.action !== 'deleted') {
+      openFile(op.filePath, op.fileName);
+    }
+  };
+
+  const getOperationStyles = (action: string) => {
+    if (action === 'deleted') {
+      return {
+        bg: 'bg-red-900/30 border border-red-800/50',
+        hover: 'hover:bg-red-900/50',
+        iconColor: 'text-red-400',
+        labelColor: 'text-red-400',
+        nameColor: 'text-red-300',
+      };
+    }
+    return {
+      bg: 'bg-[#272729]',
+      hover: 'hover:bg-[#3a3a3c]',
+      iconColor: 'text-[#9a9a9c]',
+      labelColor: 'text-[#9a9a9c]',
+      nameColor: 'text-[#dcdcde]',
+    };
   };
 
   return (
@@ -144,21 +165,36 @@ function FileOperationsInline({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-wrap items-center gap-2 pt-1"
     >
-      {displayedOps.map((op) => (
-        <button
-          key={op.id}
-          type="button"
-          onClick={() => handleFileClick(op)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#272729] hover:bg-[#3a3a3c] transition-colors text-xs group"
-        >
-          <FileCode className="w-3.5 h-3.5 text-[#9a9a9c]" />
-          <span className="text-[#9a9a9c]">{getActionLabel(op.action)}</span>
-          <span className="text-[#dcdcde] group-hover:underline">{op.fileName}</span>
-          {isStreaming && op === operations[operations.length - 1] && (
-            <Loader2 className="w-3 h-3 animate-spin text-[#9a9a9c]" />
-          )}
-        </button>
-      ))}
+      {displayedOps.map((op) => {
+        const styles = getOperationStyles(op.action);
+        const isDeleted = op.action === 'deleted';
+        
+        return (
+          <button
+            key={op.id}
+            type="button"
+            onClick={() => handleFileClick(op)}
+            className={cn(
+              'flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-xs group',
+              styles.bg,
+              styles.hover,
+              isDeleted && 'cursor-default'
+            )}
+          >
+            <FileCode className={cn('w-3.5 h-3.5', styles.iconColor)} />
+            <span className={styles.labelColor}>{getActionLabel(op.action)}</span>
+            <span className={cn(styles.nameColor, !isDeleted && 'group-hover:underline', isDeleted && 'line-through')}>
+              {op.fileName}
+            </span>
+            {isStreaming && op === operations[operations.length - 1] && (
+              <Loader2 className={cn('w-3 h-3 animate-spin', styles.iconColor)} />
+            )}
+            {isDeleted && !isStreaming && (
+              <CheckCircle2 className="w-3 h-3 text-red-400" />
+            )}
+          </button>
+        );
+      })}
       
       {hasMore && !showAll && (
         <button
