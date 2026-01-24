@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot, Hexagon, Atom, FileText, RotateCcw } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, Trash2, Zap, Globe, MessageSquare, Rocket, Flame, Brain, Bot, Sparkles, Wind, Fish, CircleDot, Hexagon, Atom } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,61 +10,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettingsStore, type Provider } from '@/stores/settingsStore';
-import { useFileSystemStore } from '@/stores/fileSystemStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { VirtualFile } from '@/types/files';
-
-const DEFAULT_CUSTOM_INSTRUCTIONS = '';
-
-function ProjectFilesDisplay() {
-  const nodes = useFileSystemStore((s) => s.nodes);
-  
-  const files = Object.values(nodes)
-    .filter((n) => n.type === 'file')
-    .map((f) => (f as VirtualFile).path)
-    .sort();
-
-  if (files.length === 0) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-blue-400" />
-          <label className="text-sm font-medium text-[#b0b0b2]">
-            Project Files
-          </label>
-          <span className="text-xs text-[#5a5a5c]">(auto-synced)</span>
-        </div>
-        <div className="rounded-lg bg-[#272729] border border-[#3a3a3c] p-3">
-          <p className="text-xs text-[#5a5a5c] italic">No files yet</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <FileText className="w-4 h-4 text-blue-400" />
-        <label className="text-sm font-medium text-[#b0b0b2]">
-          Project Files
-        </label>
-        <span className="text-xs text-[#5a5a5c]">({files.length} files • auto-synced)</span>
-      </div>
-      <div className="rounded-lg bg-[#272729] border border-[#3a3a3c] p-3 max-h-[120px] overflow-y-auto">
-        <div className="text-xs text-[#9a9a9c] font-mono space-y-0.5">
-          {files.map((path) => (
-            <div key={path}>{path}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function SettingsModal() {
   const {
@@ -98,8 +48,6 @@ export function SettingsModal() {
     setAnthropicApiKey,
     zaiApiKey,
     setZaiApiKey,
-    systemInstruction,
-    setSystemInstruction,
     setAvailableModels,
     clearSettings,
   } = useSettingsStore();
@@ -130,7 +78,6 @@ export function SettingsModal() {
   const [localOpenaiApiKey, setLocalOpenaiApiKey] = useState(openaiApiKey || '');
   const [localAnthropicApiKey, setLocalAnthropicApiKey] = useState(anthropicApiKey || '');
   const [localZaiApiKey, setLocalZaiApiKey] = useState(zaiApiKey || '');
-  const [localCustomInstructions, setLocalCustomInstructions] = useState(systemInstruction || '');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   useEffect(() => {
@@ -184,21 +131,6 @@ export function SettingsModal() {
   useEffect(() => {
     setLocalZaiApiKey(zaiApiKey || '');
   }, [zaiApiKey]);
-
-  useEffect(() => {
-    setLocalCustomInstructions(systemInstruction || '');
-  }, [systemInstruction]);
-
-  const handleSaveCustomInstructions = () => {
-    setSystemInstruction(localCustomInstructions);
-    toast.success('Custom instructions saved');
-  };
-
-  const handleResetCustomInstructions = () => {
-    setLocalCustomInstructions(DEFAULT_CUSTOM_INSTRUCTIONS);
-    setSystemInstruction(DEFAULT_CUSTOM_INSTRUCTIONS);
-    toast.success('Custom instructions reset to default');
-  };
 
   const handleSaveOpenRouterKey = async () => {
     setApiKey(localApiKey || null);
@@ -1360,47 +1292,6 @@ export function SettingsModal() {
                 </a>
               </p>
             </div>
-
-            <Separator className="bg-[#3a3a3c]" />
-
-            {/* Custom Instructions */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-purple-400" />
-                <label className="text-sm font-medium text-[#b0b0b2]">
-                  Custom Instructions
-                </label>
-              </div>
-              <p className="text-xs text-[#7a7a7c]">
-                Add custom instructions that will be included with every prompt.
-              </p>
-              <Textarea
-                value={localCustomInstructions}
-                onChange={(e) => setLocalCustomInstructions(e.target.value)}
-                placeholder="Example: Always use TypeScript with strict types. Prefer functional components..."
-                className="min-h-[80px] bg-[#272729] border-[#3a3a3c] text-[#dcdcde] placeholder:text-[#5a5a5c] resize-y"
-                rows={3}
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveCustomInstructions}
-                  className="flex-1 bg-[#dcdcde] hover:bg-[#c0c0c2] text-[#161618]"
-                >
-                  Save Instructions
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleResetCustomInstructions}
-                  className="border-[#3a3a3c] hover:bg-[#272729] text-[#dcdcde]"
-                  title="Reset"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Project Files - Auto-fetched */}
-            <ProjectFilesDisplay />
 
             <Separator className="bg-[#3a3a3c]" />
 
