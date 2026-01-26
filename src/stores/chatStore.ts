@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingState, FileOperation } from '@/types/chat';
+import type { ChatMessage, ThinkingState, FileOperation, ToolCallState } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
   isGenerating: boolean;
   isThinking: boolean;
+  isExecutingTool: boolean;
+  activeToolCallId: string | null;
   abortController: AbortController | null;
   error: string | null;
   lastCancelledMessageId: string | null;
@@ -25,12 +27,17 @@ interface ChatStore {
   markMessageCancelled: (messageId: string) => void;
   clearCancelled: () => void;
   addFileOperation: (messageId: string, action: 'created' | 'updated' | 'deleted' | 'skipped', filePath: string, reason?: string) => void;
+  addToolCall: (messageId: string, name: string, args: Record<string, unknown>) => string;
+  updateToolCallStatus: (messageId: string, toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => void;
+  setExecutingTool: (executing: boolean, toolCallId?: string | null) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   isGenerating: false,
   isThinking: false,
+  isExecutingTool: false,
+  activeToolCallId: null,
   abortController: null,
   error: null,
   lastCancelledMessageId: null,
@@ -180,5 +187,53 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           : m
       ),
     }));
+  },
+
+  addToolCall: (messageId: string, name: string, args: Record<string, unknown>) => {
+    const toolCallId = uuidv4();
+    const toolCall: ToolCallState = {
+      id: toolCallId,
+      name,
+      arguments: args,
+      status: 'pending',
+      startedAt: new Date(),
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, toolCalls: [...(m.toolCalls || []), toolCall] }
+          : m
+      ),
+    }));
+    return toolCallId;
+  },
+
+  updateToolCallStatus: (messageId: string, toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              toolCalls: m.toolCalls?.map((tc) =>
+                tc.id === toolCallId
+                  ? {
+                      ...tc,
+                      status,
+                      result,
+                      completedAt: status === 'completed' || status === 'error' ? new Date() : undefined,
+                    }
+                  : tc
+              ),
+            }
+          : m
+      ),
+    }));
+  },
+
+  setExecutingTool: (executing: boolean, toolCallId?: string | null) => {
+    set({
+      isExecutingTool: executing,
+      activeToolCallId: toolCallId ?? null,
+    });
   },
 }));

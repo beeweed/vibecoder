@@ -372,7 +372,6 @@ export function SettingsModal() {
     setLocalOpenaiApiKey('');
     setLocalAnthropicApiKey('');
     setLocalZaiApiKey('');
-    setLocalCustomInstructions('');
     toast.success('Settings cleared');
   };
 

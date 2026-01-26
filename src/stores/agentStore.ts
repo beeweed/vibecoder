@@ -12,7 +12,7 @@ interface AgentStore {
   setStatus: (status: AgentStatus) => void;
   setCurrentOperation: (operation: string | null) => void;
   setCurrentFile: (file: string | null) => void;
-  addActivityLog: (action: 'created' | 'updated' | 'deleted' | 'skipped', filePath: string) => void;
+  addActivityLog: (action: 'created' | 'updated' | 'deleted' | 'skipped' | 'read', filePath: string) => void;
   setError: (message: string | null) => void;
   clearActivityLog: () => void;
   reset: () => void;
@@ -31,7 +31,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
   
   setCurrentFile: (file: string | null) => set({ currentFile: file }),
 
-  addActivityLog: (action: 'created' | 'updated' | 'deleted' | 'skipped', filePath: string) => {
+  addActivityLog: (action: 'created' | 'updated' | 'deleted' | 'skipped' | 'read', filePath: string) => {
     const entry: ActivityLogEntry = {
       id: uuidv4(),
       timestamp: new Date(),

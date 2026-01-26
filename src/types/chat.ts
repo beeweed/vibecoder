@@ -13,6 +13,20 @@ export interface FileOperation {
   reason?: string; // For skipped operations
 }
 
+export interface ToolCallState {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  status: 'pending' | 'executing' | 'completed' | 'error';
+  result?: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+  startedAt: Date;
+  completedAt?: Date;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -23,6 +37,7 @@ export interface ChatMessage {
   thinking?: ThinkingState;
   wasCancelled?: boolean;
   fileOperations?: FileOperation[];
+  toolCalls?: ToolCallState[];
 }
 
 export interface ChatState {

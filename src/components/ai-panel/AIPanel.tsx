@@ -19,6 +19,7 @@ import {
   Play,
   Trash2,
   SkipForward,
+  FileSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,18 +30,20 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import type { VirtualFile } from '@/types/files';
-import type { FileOperation } from '@/types/chat';
+import type { FileOperation, ToolCallState } from '@/types/chat';
 import { useEditorStore } from '@/stores/editorStore';
 import {
   createParser,
   parseChunk,
   flushParser,
   type ParsedFileOperation,
+  type ParsedToolCall,
 } from '@/lib/parser';
 import { buildFileTreeContext } from '@/lib/systemPrompt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import { ToolCallsList, ActiveToolCallBanner } from './ToolCallIndicator';
 
 function FileOperationsInline({ 
   operations, 
@@ -176,6 +179,7 @@ function FileOperationsInline({
 const statusConfig = {
   idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
   thinking: { icon: Brain, label: 'Thinking...', color: 'text-purple-400' },
+  reading: { icon: FileSearch, label: 'Reading file...', color: 'text-blue-400' },
   writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
   refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
   completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
@@ -260,6 +264,12 @@ export function AIPanel() {
 
   const openFile = useEditorStore((s) => s.openFile);
 
+  const addToolCall = useChatStore((s) => s.addToolCall);
+  const updateToolCallStatus = useChatStore((s) => s.updateToolCallStatus);
+  const setExecutingTool = useChatStore((s) => s.setExecutingTool);
+  const isExecutingTool = useChatStore((s) => s.isExecutingTool);
+  const activeToolCallId = useChatStore((s) => s.activeToolCallId);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -280,6 +290,84 @@ export function AIPanel() {
       return `[File not found: ${path}]`;
     },
     [getFileByPath]
+  );
+
+  const executeToolCall = useCallback(
+    async (toolCall: ParsedToolCall, messageId: string): Promise<string | null> => {
+      if (toolCall.name === 'read_file') {
+        const path = (toolCall.arguments as { path?: string })?.path;
+        if (!path) {
+          return '[Error: No path provided for read_file tool]';
+        }
+
+        // Add tool call to message
+        const toolCallId = addToolCall(messageId, 'read_file', toolCall.arguments);
+        setExecutingTool(true, toolCallId);
+        setStatus('reading');
+        addActivityLog('read', path);
+
+        // Update status to executing
+        updateToolCallStatus(messageId, toolCallId, 'executing');
+
+        try {
+          // Get file content from virtual file system
+          const file = getFileByPath(path);
+          
+          if (!file) {
+            updateToolCallStatus(messageId, toolCallId, 'error', {
+              success: false,
+              error: `File not found: ${path}`,
+            });
+            setExecutingTool(false, null);
+            return `[Error: File not found: ${path}]`;
+          }
+
+          // Call API for validation and processing
+          const response = await fetch('/api/tools/read-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path,
+              fileContent: file.content,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!result.success) {
+            updateToolCallStatus(messageId, toolCallId, 'error', {
+              success: false,
+              error: result.error,
+            });
+            setExecutingTool(false, null);
+            return `[Error reading file: ${result.error}]`;
+          }
+
+          // Success
+          updateToolCallStatus(messageId, toolCallId, 'completed', {
+            success: true,
+            data: result.data,
+          });
+          setExecutingTool(false, null);
+
+          const output = result.data;
+          const truncatedNote = output.truncated ? '\n[Note: File was truncated due to size limits]' : '';
+          
+          return `\n---\n📖 **File: ${path}** (${output.lineCount} lines)\n\`\`\`\n${output.content}\n\`\`\`${truncatedNote}\n---\n`;
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          updateToolCallStatus(messageId, toolCallId, 'error', {
+            success: false,
+            error: errorMsg,
+          });
+          setExecutingTool(false, null);
+          return `[Error reading file: ${errorMsg}]`;
+        }
+      }
+
+      return null;
+    },
+    [getFileByPath, addToolCall, updateToolCallStatus, setExecutingTool, setStatus, addActivityLog]
   );
 
   const executeFileOperation = useCallback(
@@ -336,6 +424,22 @@ export function AIPanel() {
       }
     },
     [executeFileOperation, appendToMessage]
+  );
+
+  const processToolCalls = useCallback(
+    async (toolCalls: ParsedToolCall[], messageId: string): Promise<string[]> => {
+      const results: string[] = [];
+      for (const toolCall of toolCalls) {
+        const result = await executeToolCall(toolCall, messageId);
+        if (result) {
+          results.push(result);
+          // Append the result to the message
+          appendToMessage(messageId, result);
+        }
+      }
+      return results;
+    },
+    [executeToolCall, appendToMessage]
   );
 
   const handleSubmit = async () => {
@@ -517,7 +621,17 @@ export function AIPanel() {
                 setCurrentFile(result.currentFilePath);
               }
 
+              if (result.currentToolName) {
+                setStatus('reading');
+              }
+
               processFileOperations(result.newOperations, messageId);
+
+              // Process tool calls
+              if (result.newToolCalls.length > 0) {
+                await processToolCalls(result.newToolCalls, messageId);
+                setStatus('writing');
+              }
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -527,6 +641,9 @@ export function AIPanel() {
               }
               if (flushResult.incompleteOperation) {
                 processFileOperations([flushResult.incompleteOperation], messageId);
+              }
+              if (flushResult.incompleteToolCall) {
+                await processToolCalls([flushResult.incompleteToolCall], messageId);
               }
             }
           } catch (e) {
@@ -655,7 +772,17 @@ export function AIPanel() {
                 setCurrentFile(result.currentFilePath);
               }
 
+              if (result.currentToolName) {
+                setStatus('reading');
+              }
+
               processFileOperations(result.newOperations, messageId);
+
+              // Process tool calls
+              if (result.newToolCalls.length > 0) {
+                await processToolCalls(result.newToolCalls, messageId);
+                setStatus('writing');
+              }
             } else if (data.type === 'error') {
               throw new Error(data.message);
             } else if (data.type === 'done') {
@@ -665,6 +792,9 @@ export function AIPanel() {
               }
               if (flushResult.incompleteOperation) {
                 processFileOperations([flushResult.incompleteOperation], messageId);
+              }
+              if (flushResult.incompleteToolCall) {
+                await processToolCalls([flushResult.incompleteToolCall], messageId);
               }
             }
           } catch (e) {
@@ -845,6 +975,14 @@ export function AIPanel() {
                       <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
                     )}
                   </div>
+                  
+                  {/* Tool Calls */}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <ToolCallsList 
+                      toolCalls={message.toolCalls}
+                      activeToolCallId={activeToolCallId}
+                    />
+                  )}
                   
                   {/* Inline File Operations */}
                   {message.fileOperations && message.fileOperations.length > 0 && (

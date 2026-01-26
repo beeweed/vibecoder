@@ -1,6 +1,7 @@
 export type AgentStatus =
   | 'idle'
   | 'thinking'
+  | 'reading'
   | 'writing'
   | 'refactoring'
   | 'completed'
@@ -9,7 +10,7 @@ export type AgentStatus =
 export interface ActivityLogEntry {
   id: string;
   timestamp: Date;
-  action: 'created' | 'updated' | 'deleted' | 'skipped';
+  action: 'created' | 'updated' | 'deleted' | 'skipped' | 'read';
   filePath: string;
 }
 
