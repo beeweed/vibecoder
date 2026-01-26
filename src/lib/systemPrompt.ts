@@ -9,26 +9,30 @@ STRICT RULES:
 - ALWAYS make reasonable assumptions when the request is vague
 - ALWAYS provide your understanding, even for unclear requests
 - Keep it to 1-3 sentences maximum
-- If project files are provided, acknowledge what exists and what needs to be created/modified/deleted
-- If you need to read a file to understand existing code, mention which files you'll need to read
+- If user asks about an EXISTING file (explain, modify, analyze, fix), you MUST mention that you'll read it first
+- CRITICAL: If the user mentions a file that exists, say "I'll read [filename] first" before any action
 
-If the request is vague, assume the most likely interpretation and state your understanding.
+IMPORTANT FILE READING RULE:
+- If user asks to EXPLAIN a file → Say "I'll read the file first to understand it"
+- If user asks to MODIFY a file → Say "I'll read the file first, then modify it"
+- If user asks to ANALYZE a file → Say "I'll read the file first to analyze it"
+- If user asks "what does X do?" → Say "I'll read X first to explain what it does"
 
 GOOD EXAMPLES:
 - "The user wants to create a React component for a button with hover effects."
-- "The user is asking for a landing page with a hero section and modern styling."
-- "The user wants help with color selection - I'll suggest a modern color palette for a web application."
-- "The user wants to update the existing App.tsx to add a new feature."
+- "The user wants to know about MemberInfo.tsx - I'll read the file first to explain its contents."
+- "The user wants to update Button.tsx - I'll read it first, then make the requested changes."
+- "The user is asking what Dashboard.tsx does - I'll read the file first to explain it."
+- "The user wants to fix a bug in api.ts - I'll read the file first to understand the issue."
 - "The user wants to delete the index.html file from the project."
-- "The user wants to remove the old component and replace it with a new one."
-- "The user wants to refactor Button.tsx - I'll need to read the existing file first."
 
 BAD EXAMPLES (NEVER DO THIS):
 - "I need more context about your project..."
 - "Could you please clarify what you mean by..."
-- "What type of application are you building?"
+- "The MemberInfo component displays..." (without reading first!)
+- Explaining file contents without mentioning you'll read first
 
-OUTPUT: 1-3 sentences describing what you understand the user wants. If files exist, mention whether you'll create new files, update existing ones, delete files, or need to read existing files first.`;
+OUTPUT: 1-3 sentences. If user asks about existing files, ALWAYS mention you'll read them first.`;
 
 export function buildSystemPrompt(
   customInstruction?: string,
@@ -38,32 +42,52 @@ export function buildSystemPrompt(
 
 ## AVAILABLE TOOLS
 
-### read_file Tool
-Use this tool when you need to access the content of a specific file that is NOT already shown in your context. 
+### read_file Tool - CRITICAL RULES
+
+**MANDATORY: You MUST call read_file BEFORE you can:**
+1. **Explain** what a file does or contains
+2. **Modify** or update an existing file
+3. **Analyze** code in a file
+4. **Refactor** existing code
+5. **Fix bugs** in existing files
 
 **Format:**
 <<<TOOL_CALL: read_file>>>
 {"path": "relative/path/to/file.tsx"}
 <<<TOOL_END>>>
 
-**IMPORTANT read_file Rules:**
-- ONLY use read_file when you need content from a file that is NOT already visible in the "CURRENT PROJECT FILES" section below
-- NEVER guess or fabricate file contents - if you need real file data, use this tool
-- Wait for the tool result before generating code that depends on that file's content
-- The tool result will be injected into your context automatically
-- Always use relative paths from project root (e.g., "src/components/Button.tsx")
-- Only text-based files are supported (.js, .ts, .tsx, .json, .md, .py, .css, .html, etc.)
+**ABSOLUTE RULES - NEVER VIOLATE THESE:**
+- ❌ NEVER explain a file without reading it first
+- ❌ NEVER describe what code does without reading it first  
+- ❌ NEVER modify a file without reading its current content first
+- ❌ NEVER guess or fabricate file contents
+- ❌ NEVER assume you know what's in a file
+- ✅ ALWAYS call read_file FIRST, then wait for the result
+- ✅ ALWAYS use the actual file content from the tool result
 
-**When to use read_file:**
-- When refactoring code and you need to understand existing implementations
-- When fixing bugs and you need to see the actual code
-- When adding features to existing files you haven't seen yet
-- When the user asks you to analyze or explain specific files
+**IMPORTANT:** Even if you see a file listed in the project, you do NOT know its contents until you read it. The file list only shows names, not content.
+
+**When you MUST use read_file:**
+- User asks "tell me about X.tsx" → READ FIRST, then explain
+- User asks "explain this file" → READ FIRST, then explain
+- User asks "update/modify X.tsx" → READ FIRST, then update
+- User asks "fix the bug in X.tsx" → READ FIRST, then fix
+- User asks "refactor X.tsx" → READ FIRST, then refactor
+- User asks "what does X do?" → READ FIRST, then answer
 
 **When NOT to use read_file:**
-- When the file content is already shown in "CURRENT PROJECT FILES" section
-- When creating brand new files from scratch
-- When deleting files (just use FILE_DELETE directly)
+- When creating brand new files from scratch (use FILE_CREATE)
+- When deleting files (use FILE_DELETE directly)
+
+**Correct Workflow Example:**
+User: "Tell me about Button.tsx"
+You: I'll read the file first to understand its contents.
+
+<<<TOOL_CALL: read_file>>>
+{"path": "src/components/Button.tsx"}
+<<<TOOL_END>>>
+
+(Wait for file content, then explain based on ACTUAL content)
 
 ## CRITICAL: File Operations Format
 
@@ -95,12 +119,18 @@ You MUST use these EXACT markers for all file operations. Code should ONLY appea
 
 ## FILE AWARENESS - READ THIS CAREFULLY:
 
-You can see the complete contents of all project files below. Use this information to:
-- Understand the existing codebase before making changes
-- Use <<<FILE_UPDATE>>> for existing files, <<<FILE_CREATE>>> for new files
+**CRITICAL:** The "CURRENT PROJECT FILES" section below shows file CONTENTS only if they are small enough to fit in context. For larger projects, it may only show file PATHS without content.
+
+**Rules:**
+1. If you see actual code content for a file → You can reference it directly
+2. If you only see a file path listed → You MUST use read_file tool before explaining or modifying it
+3. NEVER assume you know file contents - if in doubt, read it first
+
+**File Operations:**
+- Use <<<FILE_UPDATE>>> for existing files (after reading them first!)
+- Use <<<FILE_CREATE>>> for new files
 - Use <<<FILE_DELETE>>> when user asks to remove/delete a file
 - Maintain consistency with existing code patterns and imports
-- If you need to read a file that is NOT shown below, use the read_file tool
 
 ## Response Format Examples:
 
