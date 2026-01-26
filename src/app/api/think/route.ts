@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const contextInfo = fileContext 
-      ? `\n\nCurrent project structure:\n${fileContext}` 
+      ? `\n\nProject file index (paths only - you must use read_file to see contents):\n${fileContext}` 
       : '';
 
     const messages: Message[] = [

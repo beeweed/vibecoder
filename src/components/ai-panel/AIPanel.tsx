@@ -474,7 +474,7 @@ export function AIPanel() {
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
       const fileContext = buildFileTreeContext(
-        files.map((f) => ({ path: f.path, content: f.content }))
+        files.map((f) => ({ path: f.path, content: '' }))
       );
 
       // ==========================================
@@ -694,7 +694,7 @@ export function AIPanel() {
     try {
       const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
       const fileContext = buildFileTreeContext(
-        files.map((f) => ({ path: f.path, content: f.content }))
+        files.map((f) => ({ path: f.path, content: '' }))
       );
 
       const messageId = startAssistantMessage();
