@@ -297,10 +297,10 @@ export function AIPanel() {
       if (toolCall.name === 'read_file') {
         const path = (toolCall.arguments as { path?: string })?.path;
         if (!path) {
-          return '[Error: No path provided for read_file tool]';
+          return null; // Error will be shown in the tool call UI
         }
 
-        // Add tool call to message
+        // Add tool call to message immediately (shows loading state)
         const toolCallId = addToolCall(messageId, 'read_file', toolCall.arguments);
         setExecutingTool(true, toolCallId);
         setStatus('reading');
@@ -319,7 +319,7 @@ export function AIPanel() {
               error: `File not found: ${path}`,
             });
             setExecutingTool(false, null);
-            return `[Error: File not found: ${path}]`;
+            return null; // Error shown in UI, no text to append
           }
 
           // Call API for validation and processing
@@ -340,20 +340,18 @@ export function AIPanel() {
               error: result.error,
             });
             setExecutingTool(false, null);
-            return `[Error reading file: ${result.error}]`;
+            return null; // Error shown in UI
           }
 
-          // Success
+          // Success - store file content in tool call result (displayed in dropdown)
           updateToolCallStatus(messageId, toolCallId, 'completed', {
             success: true,
             data: result.data,
           });
           setExecutingTool(false, null);
 
-          const output = result.data;
-          const truncatedNote = output.truncated ? '\n[Note: File was truncated due to size limits]' : '';
-          
-          return `\n---\n📖 **File: ${path}** (${output.lineCount} lines)\n\`\`\`\n${output.content}\n\`\`\`${truncatedNote}\n---\n`;
+          // Return null - content is shown in the collapsible dropdown, not in message text
+          return null;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
           updateToolCallStatus(messageId, toolCallId, 'error', {
@@ -361,7 +359,7 @@ export function AIPanel() {
             error: errorMsg,
           });
           setExecutingTool(false, null);
-          return `[Error reading file: ${errorMsg}]`;
+          return null; // Error shown in UI
         }
       }
 
@@ -427,19 +425,13 @@ export function AIPanel() {
   );
 
   const processToolCalls = useCallback(
-    async (toolCalls: ParsedToolCall[], messageId: string): Promise<string[]> => {
-      const results: string[] = [];
+    async (toolCalls: ParsedToolCall[], messageId: string): Promise<void> => {
       for (const toolCall of toolCalls) {
-        const result = await executeToolCall(toolCall, messageId);
-        if (result) {
-          results.push(result);
-          // Append the result to the message
-          appendToMessage(messageId, result);
-        }
+        await executeToolCall(toolCall, messageId);
+        // Results are displayed in the ToolCallIndicator dropdown, not in message text
       }
-      return results;
     },
-    [executeToolCall, appendToMessage]
+    [executeToolCall]
   );
 
   const handleSubmit = async () => {

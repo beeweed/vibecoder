@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileSearch, Loader2, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import { FileSearch, Loader2, CheckCircle2, XCircle, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ToolCallState } from '@/types/chat';
+import type { ReadFileOutput } from '@/types/tools';
 
 interface ToolCallIndicatorProps {
   toolCall: ToolCallState;
@@ -13,8 +15,8 @@ interface ToolCallIndicatorProps {
 const toolConfig = {
   read_file: {
     icon: FileSearch,
-    label: 'Reading file',
-    activeLabel: 'Reading file from project…',
+    label: 'Read file',
+    activeLabel: 'Reading',
     color: 'text-blue-400',
     bgColor: 'bg-blue-950/50',
     borderColor: 'border-blue-800/50',
@@ -22,6 +24,8 @@ const toolConfig = {
 };
 
 export function ToolCallIndicator({ toolCall, isActive = false }: ToolCallIndicatorProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const config = toolConfig[toolCall.name as keyof typeof toolConfig] || {
     icon: FileText,
     label: toolCall.name,
@@ -33,23 +37,41 @@ export function ToolCallIndicator({ toolCall, isActive = false }: ToolCallIndica
 
   const Icon = config.icon;
   const filePath = (toolCall.arguments as { path?: string })?.path || '';
-  const fileName = filePath.split('/').pop() || filePath;
+  const isExecuting = toolCall.status === 'pending' || toolCall.status === 'executing';
+  const isCompleted = toolCall.status === 'completed';
+  const isError = toolCall.status === 'error';
+  
+  // Get file content from result if available
+  const fileData = toolCall.result?.data as ReadFileOutput | undefined;
+  const fileContent = fileData?.content;
+  const isTruncated = fileData?.truncated;
+  const lineCount = fileData?.lineCount;
 
   const getStatusIcon = () => {
-    switch (toolCall.status) {
-      case 'pending':
-      case 'executing':
-        return <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />;
-      case 'completed':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
-      case 'error':
-        return <XCircle className="w-3.5 h-3.5 text-red-400" />;
-      default:
-        return null;
+    if (isExecuting) {
+      return <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />;
     }
+    if (isCompleted) {
+      return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
+    }
+    if (isError) {
+      return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    }
+    return null;
   };
 
-  const isExecuting = toolCall.status === 'pending' || toolCall.status === 'executing';
+  const getStatusText = () => {
+    if (isExecuting) {
+      return `${config.activeLabel} ${filePath}`;
+    }
+    if (isCompleted) {
+      return `${config.label} ${filePath}`;
+    }
+    if (isError) {
+      return `Failed to read ${filePath}`;
+    }
+    return config.label;
+  };
 
   return (
     <motion.div
@@ -57,29 +79,92 @@ export function ToolCallIndicator({ toolCall, isActive = false }: ToolCallIndica
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -5, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-lg border transition-all',
-        config.bgColor,
-        config.borderColor,
-        isExecuting && 'animate-pulse'
-      )}
+      className="overflow-hidden"
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
+      {/* Header - Always visible */}
+      <button
+        type="button"
+        onClick={() => isCompleted && fileContent && setIsExpanded(!isExpanded)}
+        disabled={!isCompleted || !fileContent}
+        className={cn(
+          'w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left',
+          config.bgColor,
+          config.borderColor,
+          isExecuting && 'animate-pulse',
+          isCompleted && fileContent && 'cursor-pointer hover:bg-blue-950/70',
+          (!isCompleted || !fileContent) && 'cursor-default'
+        )}
+      >
+        {/* Expand/Collapse chevron */}
+        {isCompleted && fileContent ? (
+          isExpanded ? (
+            <ChevronDown className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+          )
+        ) : (
+          <div className="w-3.5 flex-shrink-0" />
+        )}
+        
+        {/* Icon */}
         <Icon className={cn('w-4 h-4 flex-shrink-0', config.color)} />
-        <div className="flex flex-col min-w-0">
-          <span className={cn('text-xs font-medium', config.color)}>
-            {isExecuting ? config.activeLabel : config.label}
+        
+        {/* Status text with file path */}
+        <div className="flex-1 min-w-0">
+          <span className={cn('text-xs font-medium', isError ? 'text-red-400' : config.color)}>
+            {getStatusText()}
           </span>
-          {filePath && (
-            <span className="text-xs text-[#9a9a9c] truncate" title={filePath}>
-              {fileName}
+          {isCompleted && lineCount && (
+            <span className="text-xs text-[#7a7a7c] ml-2">
+              ({lineCount} lines{isTruncated ? ', truncated' : ''})
             </span>
           )}
         </div>
-      </div>
-      <div className="flex-shrink-0">
-        {getStatusIcon()}
-      </div>
+        
+        {/* Status icon */}
+        <div className="flex-shrink-0">
+          {getStatusIcon()}
+        </div>
+      </button>
+      
+      {/* Expandable content - File content dropdown */}
+      <AnimatePresence>
+        {isExpanded && isCompleted && fileContent && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1 ml-6 mr-2">
+              <div className="bg-[#1e1e20] border border-[#3a3a3c] rounded-lg overflow-hidden">
+                <div className="max-h-[300px] overflow-auto">
+                  <pre className="p-3 text-xs font-mono text-[#b0b0b2] whitespace-pre-wrap break-all">
+                    {fileContent}
+                  </pre>
+                </div>
+                {isTruncated && (
+                  <div className="px-3 py-1.5 bg-amber-950/30 border-t border-amber-800/30 text-xs text-amber-400">
+                    ⚠️ File content was truncated due to size limits
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Error message */}
+      {isError && toolCall.result?.error && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          className="mt-1 ml-6 mr-2 px-3 py-2 bg-red-950/30 border border-red-800/30 rounded-lg text-xs text-red-400"
+        >
+          {toolCall.result.error}
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -123,7 +208,6 @@ export function ActiveToolCallBanner({ toolName, filePath }: ActiveToolCallBanne
   };
 
   const Icon = config.icon;
-  const fileName = filePath?.split('/').pop() || filePath;
 
   return (
     <motion.div
@@ -139,13 +223,8 @@ export function ActiveToolCallBanner({ toolName, filePath }: ActiveToolCallBanne
       <Loader2 className={cn('w-4 h-4 animate-spin', config.color)} />
       <Icon className={cn('w-4 h-4', config.color)} />
       <span className={cn('text-xs font-medium', config.color)}>
-        {config.activeLabel}
+        {config.activeLabel} {filePath}
       </span>
-      {fileName && (
-        <code className="text-xs text-[#dcdcde] bg-[#272729] px-1.5 py-0.5 rounded">
-          {fileName}
-        </code>
-      )}
     </motion.div>
   );
 }
