@@ -27,6 +27,26 @@ export interface ToolCallState {
   completedAt?: Date;
 }
 
+export interface PlanStepDisplay {
+  id: string;
+  stepNumber: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'error' | 'skipped';
+  content?: string;
+  isStreaming?: boolean;
+  fileOperations?: FileOperation[];
+  toolCalls?: ToolCallState[];
+  error?: string;
+}
+
+export interface AgentPlanDisplay {
+  goal: string;
+  steps: PlanStepDisplay[];
+  isStreaming?: boolean;
+  rawContent?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -38,6 +58,9 @@ export interface ChatMessage {
   wasCancelled?: boolean;
   fileOperations?: FileOperation[];
   toolCalls?: ToolCallState[];
+  agentPlan?: AgentPlanDisplay;
+  completionSummary?: string;
+  isCompletionStreaming?: boolean;
 }
 
 export interface ChatState {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingState, FileOperation, ToolCallState } from '@/types/chat';
+import type { ChatMessage, ThinkingState, FileOperation, ToolCallState, AgentPlanDisplay, PlanStepDisplay } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -30,6 +30,23 @@ interface ChatStore {
   addToolCall: (messageId: string, name: string, args: Record<string, unknown>) => string;
   updateToolCallStatus: (messageId: string, toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => void;
   setExecutingTool: (executing: boolean, toolCallId?: string | null) => void;
+
+  setMessageAgentPlan: (messageId: string, plan: AgentPlanDisplay) => void;
+  updatePlanRawContent: (messageId: string, rawContent: string) => void;
+  appendPlanRawContent: (messageId: string, chunk: string) => void;
+  initializePlanSteps: (messageId: string, goal: string, steps: Array<{ title: string; description: string }>) => void;
+  startPlanStep: (messageId: string, stepId: string) => void;
+  updateStepContent: (messageId: string, stepId: string, content: string, isStreaming?: boolean) => void;
+  appendStepContent: (messageId: string, stepId: string, chunk: string) => void;
+  completePlanStep: (messageId: string, stepId: string) => void;
+  failPlanStep: (messageId: string, stepId: string, error: string) => void;
+  addStepFileOperation: (messageId: string, stepId: string, action: 'created' | 'updated' | 'deleted' | 'skipped', filePath: string, reason?: string) => void;
+  addStepToolCall: (messageId: string, stepId: string, name: string, args: Record<string, unknown>) => string;
+  updateStepToolCallStatus: (messageId: string, stepId: string, toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => void;
+  
+  setCompletionSummary: (messageId: string, summary: string, isStreaming?: boolean) => void;
+  appendCompletionSummary: (messageId: string, chunk: string) => void;
+  finalizeCompletionSummary: (messageId: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -235,5 +252,263 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       isExecutingTool: executing,
       activeToolCallId: toolCallId ?? null,
     });
+  },
+
+  setMessageAgentPlan: (messageId: string, plan: AgentPlanDisplay) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId ? { ...m, agentPlan: plan } : m
+      ),
+    }));
+  },
+
+  updatePlanRawContent: (messageId: string, rawContent: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, agentPlan: m.agentPlan ? { ...m.agentPlan, rawContent, isStreaming: true } : { goal: '', steps: [], rawContent, isStreaming: true } }
+          : m
+      ),
+    }));
+  },
+
+  appendPlanRawContent: (messageId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? { ...m, agentPlan: { ...m.agentPlan, rawContent: (m.agentPlan.rawContent || '') + chunk } }
+          : m
+      ),
+    }));
+  },
+
+  initializePlanSteps: (messageId: string, goal: string, steps: Array<{ title: string; description: string }>) => {
+    const planSteps: PlanStepDisplay[] = steps.map((step, index) => ({
+      id: uuidv4(),
+      stepNumber: index + 1,
+      title: step.title,
+      description: step.description,
+      status: 'pending',
+    }));
+
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, agentPlan: { goal, steps: planSteps, isStreaming: false } }
+          : m
+      ),
+    }));
+  },
+
+  startPlanStep: (messageId: string, stepId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, status: 'in_progress' as const, isStreaming: true, content: '' }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  updateStepContent: (messageId: string, stepId: string, content: string, isStreaming = true) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId ? { ...step, content, isStreaming } : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  appendStepContent: (messageId: string, stepId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, content: (step.content || '') + chunk }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  completePlanStep: (messageId: string, stepId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, status: 'completed' as const, isStreaming: false }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  failPlanStep: (messageId: string, stepId: string, error: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, status: 'error' as const, isStreaming: false, error }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  addStepFileOperation: (messageId: string, stepId: string, action: 'created' | 'updated' | 'deleted' | 'skipped', filePath: string, reason?: string) => {
+    const fileName = filePath.split('/').pop() || filePath;
+    const operation: FileOperation = {
+      id: uuidv4(),
+      action,
+      filePath,
+      fileName,
+      reason,
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, fileOperations: [...(step.fileOperations || []), operation] }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  addStepToolCall: (messageId: string, stepId: string, name: string, args: Record<string, unknown>) => {
+    const toolCallId = uuidv4();
+    const toolCall: ToolCallState = {
+      id: toolCallId,
+      name,
+      arguments: args,
+      status: 'pending',
+      startedAt: new Date(),
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? { ...step, toolCalls: [...(step.toolCalls || []), toolCall] }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+    return toolCallId;
+  },
+
+  updateStepToolCallStatus: (messageId: string, stepId: string, toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentPlan
+          ? {
+              ...m,
+              agentPlan: {
+                ...m.agentPlan,
+                steps: m.agentPlan.steps.map((step) =>
+                  step.id === stepId
+                    ? {
+                        ...step,
+                        toolCalls: step.toolCalls?.map((tc) =>
+                          tc.id === toolCallId
+                            ? { ...tc, status, result, completedAt: status === 'completed' || status === 'error' ? new Date() : undefined }
+                            : tc
+                        ),
+                      }
+                    : step
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  setCompletionSummary: (messageId: string, summary: string, isStreaming = true) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, completionSummary: summary, isCompletionStreaming: isStreaming }
+          : m
+      ),
+    }));
+  },
+
+  appendCompletionSummary: (messageId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, completionSummary: (m.completionSummary || '') + chunk }
+          : m
+      ),
+    }));
+  },
+
+  finalizeCompletionSummary: (messageId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? { ...m, isCompletionStreaming: false }
+          : m
+      ),
+    }));
   },
 }));

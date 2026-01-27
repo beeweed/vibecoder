@@ -1,8 +1,10 @@
 export type AgentStatus =
   | 'idle'
   | 'thinking'
+  | 'planning'
   | 'reading'
   | 'writing'
+  | 'executing'
   | 'refactoring'
   | 'completed'
   | 'error';

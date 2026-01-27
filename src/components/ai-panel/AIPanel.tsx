@@ -20,6 +20,8 @@ import {
   Trash2,
   SkipForward,
   FileSearch,
+  ListTodo,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +45,8 @@ import { buildFileTreeContext } from '@/lib/systemPrompt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
-import { ToolCallsList, ActiveToolCallBanner } from './ToolCallIndicator';
+import { ToolCallsList } from './ToolCallIndicator';
+import { AgentPlanDisplayComponent, CompletionSummary } from './AgentPlanDisplay';
 
 function FileOperationsInline({ 
   operations, 
@@ -179,10 +182,12 @@ function FileOperationsInline({
 const statusConfig = {
   idle: { icon: Sparkles, label: 'Ready', color: 'text-[#9a9a9c]' },
   thinking: { icon: Brain, label: 'Thinking...', color: 'text-purple-400' },
+  planning: { icon: ListTodo, label: 'Planning...', color: 'text-purple-400' },
   reading: { icon: FileSearch, label: 'Reading file...', color: 'text-blue-400' },
   writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
+  executing: { icon: Zap, label: 'Executing step...', color: 'text-blue-400' },
   refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
-  completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
+  completed: { icon: CheckCircle2, label: 'Completed', color: 'text-green-400' },
   error: { icon: AlertCircle, label: 'Error', color: 'text-red-400' },
 };
 
@@ -269,6 +274,20 @@ export function AIPanel() {
   const setExecutingTool = useChatStore((s) => s.setExecutingTool);
   const isExecutingTool = useChatStore((s) => s.isExecutingTool);
   const activeToolCallId = useChatStore((s) => s.activeToolCallId);
+
+  const updatePlanRawContent = useChatStore((s) => s.updatePlanRawContent);
+  const appendPlanRawContent = useChatStore((s) => s.appendPlanRawContent);
+  const initializePlanSteps = useChatStore((s) => s.initializePlanSteps);
+  const startPlanStep = useChatStore((s) => s.startPlanStep);
+  const appendStepContent = useChatStore((s) => s.appendStepContent);
+  const completePlanStep = useChatStore((s) => s.completePlanStep);
+  const failPlanStep = useChatStore((s) => s.failPlanStep);
+  const addStepFileOperation = useChatStore((s) => s.addStepFileOperation);
+  const addStepToolCall = useChatStore((s) => s.addStepToolCall);
+  const updateStepToolCallStatus = useChatStore((s) => s.updateStepToolCallStatus);
+  const setCompletionSummary = useChatStore((s) => s.setCompletionSummary);
+  const appendCompletionSummary = useChatStore((s) => s.appendCompletionSummary);
+  const finalizeCompletionSummary = useChatStore((s) => s.finalizeCompletionSummary);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -434,6 +453,214 @@ export function AIPanel() {
     [executeToolCall]
   );
 
+  const parsePlanFromContent = useCallback((content: string): { goal: string; steps: Array<{ title: string; description: string }> } | null => {
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+      const jsonContent = jsonMatch ? jsonMatch[1].trim() : content.trim();
+      const parsed = JSON.parse(jsonContent);
+      if (parsed.goal && Array.isArray(parsed.steps)) {
+        return parsed;
+      }
+    } catch {
+      try {
+        const parsed = JSON.parse(content.trim());
+        if (parsed.goal && Array.isArray(parsed.steps)) {
+          return parsed;
+        }
+      } catch {
+        // Parsing failed
+      }
+    }
+    return null;
+  }, []);
+
+  const executeStepWithFileOps = useCallback(
+    async (
+      stepId: string,
+      messageId: string,
+      onAppendContent: (chunk: string) => void,
+      onFileOp: (action: 'created' | 'updated' | 'deleted' | 'skipped', path: string, reason?: string) => void,
+      onToolCall: (name: string, args: Record<string, unknown>) => string,
+      onToolCallUpdate: (toolCallId: string, status: ToolCallState['status'], result?: ToolCallState['result']) => void,
+      stepData: { title: string; description: string },
+      goal: string,
+      stepNumber: number,
+      totalSteps: number,
+      previousSteps: Array<{ title: string; description: string; result?: string }>,
+      abortSignal: AbortSignal
+    ): Promise<{ success: boolean; filesCreated: string[]; filesUpdated: string[]; filesDeleted: string[] }> => {
+      const files = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
+      const fileContext = buildFileTreeContext(
+        files.map((f) => ({ path: f.path, content: f.content }))
+      );
+
+      const response = await fetch('/api/agent/execute-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal,
+          currentStep: stepData,
+          stepNumber,
+          totalSteps,
+          previousSteps,
+          model: selectedModel,
+          apiKey: activeApiKey,
+          provider,
+          temperature,
+          maxTokens,
+          systemInstruction,
+          fileContext,
+        }),
+        signal: abortSignal,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to execute step');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let parserState = createParser();
+      let buffer = '';
+      const filesCreated: string[] = [];
+      const filesUpdated: string[] = [];
+      const filesDeleted: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmedLine.slice(6));
+
+            if (data.type === 'token' && data.content) {
+              const result = parseChunk(parserState, data.content);
+              parserState = result.state;
+
+              if (result.displayText) {
+                onAppendContent(result.displayText);
+              }
+
+              if (result.currentFilePath) {
+                setStatus('writing');
+                setCurrentFile(result.currentFilePath);
+              }
+
+              if (result.currentToolName) {
+                setStatus('reading');
+              }
+
+              for (const op of result.newOperations) {
+                const fileName = op.path.split('/').pop() || op.path;
+                if (op.type === 'create') {
+                  createFile(op.path, op.content || '');
+                  addActivityLog('created', op.path);
+                  onFileOp('created', op.path);
+                  filesCreated.push(op.path);
+                  openFile(op.path, fileName);
+                } else if (op.type === 'update') {
+                  updateFile(op.path, op.content || '');
+                  addActivityLog('updated', op.path);
+                  onFileOp('updated', op.path);
+                  filesUpdated.push(op.path);
+                } else if (op.type === 'delete') {
+                  const existingFile = getFileByPath(op.path);
+                  if (existingFile) {
+                    deleteFile(op.path);
+                    addActivityLog('deleted', op.path);
+                    onFileOp('deleted', op.path);
+                    filesDeleted.push(op.path);
+                  } else {
+                    onFileOp('skipped', op.path, 'File not found');
+                  }
+                }
+              }
+
+              for (const toolCall of result.newToolCalls) {
+                if (toolCall.name === 'read_file') {
+                  const path = (toolCall.arguments as { path?: string })?.path;
+                  if (path) {
+                    const toolCallId = onToolCall('read_file', toolCall.arguments);
+                    setExecutingTool(true, toolCallId);
+                    setStatus('reading');
+                    onToolCallUpdate(toolCallId, 'executing');
+
+                    const file = getFileByPath(path);
+                    if (!file) {
+                      onToolCallUpdate(toolCallId, 'error', { success: false, error: `File not found: ${path}` });
+                    } else {
+                      try {
+                        const readResponse = await fetch('/api/tools/read-file', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ path, fileContent: file.content }),
+                        });
+                        const readResult = await readResponse.json();
+                        if (readResult.success) {
+                          onToolCallUpdate(toolCallId, 'completed', { success: true, data: readResult.data });
+                        } else {
+                          onToolCallUpdate(toolCallId, 'error', { success: false, error: readResult.error });
+                        }
+                      } catch (e) {
+                        onToolCallUpdate(toolCallId, 'error', { success: false, error: String(e) });
+                      }
+                    }
+                    setExecutingTool(false, null);
+                    setStatus('writing');
+                  }
+                }
+              }
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'done') {
+              const flushResult = flushParser(parserState);
+              if (flushResult.displayText) {
+                onAppendContent(flushResult.displayText);
+              }
+              if (flushResult.incompleteOperation) {
+                const op = flushResult.incompleteOperation;
+                const fileName = op.path.split('/').pop() || op.path;
+                if (op.type === 'create') {
+                  createFile(op.path, op.content || '');
+                  onFileOp('created', op.path);
+                  filesCreated.push(op.path);
+                  openFile(op.path, fileName);
+                } else if (op.type === 'update') {
+                  updateFile(op.path, op.content || '');
+                  onFileOp('updated', op.path);
+                  filesUpdated.push(op.path);
+                }
+              }
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue;
+            throw e;
+          }
+        }
+      }
+
+      return { success: true, filesCreated, filesUpdated, filesDeleted };
+    },
+    [
+      nodes, selectedModel, activeApiKey, provider, temperature, maxTokens, systemInstruction,
+      createFile, updateFile, deleteFile, getFileByPath, addActivityLog, openFile, setStatus, setCurrentFile, setExecutingTool
+    ]
+  );
+
   const handleSubmit = async () => {
     if (!input.trim() || isGenerating) return;
 
@@ -500,7 +727,6 @@ export function AIPanel() {
         throw new Error(error.error || 'Failed to get thinking response');
       }
 
-      // Stream the thinking response
       const thinkReader = thinkResponse.body?.getReader();
       const thinkDecoder = new TextDecoder();
 
@@ -531,8 +757,6 @@ export function AIPanel() {
               setMessageThinking(userMessageId, { reasoning: fullReasoning, isStreaming: true });
             } else if (data.type === 'error') {
               throw new Error(data.message);
-            } else if (data.type === 'done') {
-              // Thinking complete
             }
           } catch (e) {
             if (e instanceof SyntaxError) continue;
@@ -541,57 +765,56 @@ export function AIPanel() {
         }
       }
 
-      // Finalize thinking
       setMessageThinking(userMessageId, { reasoning: fullReasoning, isStreaming: false });
       finalizeThinking(userMessageId);
       setThinking(false);
 
       // ==========================================
-      // PHASE 2: Coding / Execution
+      // PHASE 2: Planning (Streaming)
       // ==========================================
-      setStatus('writing');
-
+      setStatus('thinking');
+      
       const messageId = startAssistantMessage();
       currentAssistantMessageIdRef.current = messageId;
-      let parserState = createParser();
 
-      const response = await fetch('/api/chat', {
+      updatePlanRawContent(messageId, '');
+
+      const planResponse = await fetch('/api/agent/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...getMessagesForAPI().slice(0, -1), { role: 'user', content: userMessage }],
+          userMessage,
+          thinkingResult: fullReasoning,
           model: selectedModel,
           apiKey: activeApiKey,
           provider,
-          temperature,
-          maxTokens,
-          systemInstruction,
           fileContext,
         }),
         signal: abortController.signal,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to connect to API');
+      if (!planResponse.ok) {
+        const error = await planResponse.json();
+        throw new Error(error.error || 'Failed to create plan');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const planReader = planResponse.body?.getReader();
+      const planDecoder = new TextDecoder();
 
-      if (!reader) {
-        throw new Error('No response body');
+      if (!planReader) {
+        throw new Error('No response body for planning');
       }
 
-      let buffer = '';
+      let planBuffer = '';
+      let fullPlanContent = '';
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await planReader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        planBuffer += planDecoder.decode(value, { stream: true });
+        const lines = planBuffer.split('\n');
+        planBuffer = lines.pop() || '';
 
         for (const line of lines) {
           const trimmedLine = line.trim();
@@ -601,42 +824,10 @@ export function AIPanel() {
             const data = JSON.parse(trimmedLine.slice(6));
 
             if (data.type === 'token' && data.content) {
-              const result = parseChunk(parserState, data.content);
-              parserState = result.state;
-
-              if (result.displayText) {
-                appendToMessage(messageId, result.displayText);
-              }
-
-              if (result.currentFilePath) {
-                setStatus('writing');
-                setCurrentFile(result.currentFilePath);
-              }
-
-              if (result.currentToolName) {
-                setStatus('reading');
-              }
-
-              processFileOperations(result.newOperations, messageId);
-
-              // Process tool calls
-              if (result.newToolCalls.length > 0) {
-                await processToolCalls(result.newToolCalls, messageId);
-                setStatus('writing');
-              }
+              fullPlanContent += data.content;
+              appendPlanRawContent(messageId, data.content);
             } else if (data.type === 'error') {
               throw new Error(data.message);
-            } else if (data.type === 'done') {
-              const flushResult = flushParser(parserState);
-              if (flushResult.displayText) {
-                appendToMessage(messageId, flushResult.displayText);
-              }
-              if (flushResult.incompleteOperation) {
-                processFileOperations([flushResult.incompleteOperation], messageId);
-              }
-              if (flushResult.incompleteToolCall) {
-                await processToolCalls([flushResult.incompleteToolCall], messageId);
-              }
             }
           } catch (e) {
             if (e instanceof SyntaxError) continue;
@@ -645,9 +836,123 @@ export function AIPanel() {
         }
       }
 
+      const parsedPlan = parsePlanFromContent(fullPlanContent);
+      if (!parsedPlan) {
+        throw new Error('Failed to parse execution plan from LLM response');
+      }
+
+      initializePlanSteps(messageId, parsedPlan.goal, parsedPlan.steps);
+
+      // ==========================================
+      // PHASE 3: Execute Each Step (LLM-in-the-loop)
+      // ==========================================
+      setStatus('writing');
+
+      const completedSteps: Array<{ title: string; description: string; result?: string; filesCreated?: string[]; filesUpdated?: string[] }> = [];
+
+      const currentMessage = useChatStore.getState().messages.find(m => m.id === messageId);
+      const planSteps = currentMessage?.agentPlan?.steps || [];
+
+      for (let i = 0; i < planSteps.length; i++) {
+        const step = planSteps[i];
+        
+        startPlanStep(messageId, step.id);
+
+        try {
+          const stepResult = await executeStepWithFileOps(
+            step.id,
+            messageId,
+            (chunk) => appendStepContent(messageId, step.id, chunk),
+            (action, path, reason) => addStepFileOperation(messageId, step.id, action, path, reason),
+            (name, args) => addStepToolCall(messageId, step.id, name, args),
+            (toolCallId, status, result) => updateStepToolCallStatus(messageId, step.id, toolCallId, status, result),
+            { title: step.title, description: step.description },
+            parsedPlan.goal,
+            i + 1,
+            planSteps.length,
+            completedSteps,
+            abortController.signal
+          );
+
+          completePlanStep(messageId, step.id);
+          completedSteps.push({
+            title: step.title,
+            description: step.description,
+            result: "Completed successfully",
+            filesCreated: stepResult.filesCreated,
+            filesUpdated: stepResult.filesUpdated,
+          });
+
+        } catch (stepError) {
+          if ((stepError as Error).name === 'AbortError') {
+            throw stepError;
+          }
+          failPlanStep(messageId, step.id, (stepError as Error).message);
+          throw stepError;
+        }
+      }
+
+      // ==========================================
+      // PHASE 4: Completion Summary
+      // ==========================================
+      setStatus('completed');
+
+      const updatedFiles = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
+      const updatedFileContext = buildFileTreeContext(
+        updatedFiles.map((f) => ({ path: f.path, content: f.content }))
+      );
+
+      const completeResponse = await fetch('/api/agent/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal: parsedPlan.goal,
+          completedSteps,
+          model: selectedModel,
+          apiKey: activeApiKey,
+          provider,
+          fileContext: updatedFileContext,
+        }),
+        signal: abortController.signal,
+      });
+
+      if (completeResponse.ok) {
+        const completeReader = completeResponse.body?.getReader();
+        const completeDecoder = new TextDecoder();
+
+        if (completeReader) {
+          let completeBuffer = '';
+          setCompletionSummary(messageId, '', true);
+
+          while (true) {
+            const { done, value } = await completeReader.read();
+            if (done) break;
+
+            completeBuffer += completeDecoder.decode(value, { stream: true });
+            const lines = completeBuffer.split('\n');
+            completeBuffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+              try {
+                const data = JSON.parse(trimmedLine.slice(6));
+                if (data.type === 'token' && data.content) {
+                  appendCompletionSummary(messageId, data.content);
+                }
+              } catch {
+                // Ignore
+              }
+            }
+          }
+
+          finalizeCompletionSummary(messageId);
+        }
+      }
+
       finalizeMessage(messageId);
       currentAssistantMessageIdRef.current = null;
-      setStatus('completed');
       setCurrentFile(null);
 
       setTimeout(() => {
@@ -936,48 +1241,67 @@ export function AIPanel() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                        ul: ({ children }) => <ul className="list-disc ml-4 mb-3 space-y-1">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 space-y-1">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
-                        code: ({ children }) => (
-                          <code className="bg-[#272729] px-1.5 py-0.5 rounded text-xs font-mono text-[#dcdcde]">
-                            {children}
-                          </code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="bg-[#272729] p-3 rounded text-xs overflow-x-auto my-3">
-                            {children}
-                          </pre>
-                        ),
-                        strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
-                        em: ({ children }) => <em className="italic">{children}</em>,
-                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-4 text-[#dcdcde]">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-3 text-[#dcdcde]">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 text-[#dcdcde]">{children}</h3>,
-                      }}
-                    >
-                      {message.content || (message.isStreaming ? '...' : '')}
-                    </ReactMarkdown>
-                    {message.isStreaming && (
-                      <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
-                    )}
-                  </div>
+                <div className="space-y-3">
+                  {/* Agent Plan Display */}
+                  {message.agentPlan && (
+                    <AgentPlanDisplayComponent 
+                      plan={message.agentPlan}
+                      activeToolCallId={activeToolCallId}
+                    />
+                  )}
+
+                  {/* Regular message content (if any) */}
+                  {message.content && (
+                    <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc ml-4 mb-3 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li>{children}</li>,
+                          code: ({ children }) => (
+                            <code className="bg-[#272729] px-1.5 py-0.5 rounded text-xs font-mono text-[#dcdcde]">
+                              {children}
+                            </code>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="bg-[#272729] p-3 rounded text-xs overflow-x-auto my-3">
+                              {children}
+                            </pre>
+                          ),
+                          strong: ({ children }) => <strong className="font-semibold text-[#dcdcde]">{children}</strong>,
+                          em: ({ children }) => <em className="italic">{children}</em>,
+                          h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-4 text-[#dcdcde]">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-3 text-[#dcdcde]">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 text-[#dcdcde]">{children}</h3>,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                      {message.isStreaming && !message.agentPlan && (
+                        <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Completion Summary */}
+                  {message.completionSummary && (
+                    <CompletionSummary 
+                      summary={message.completionSummary}
+                      isStreaming={message.isCompletionStreaming}
+                    />
+                  )}
                   
-                  {/* Tool Calls */}
-                  {message.toolCalls && message.toolCalls.length > 0 && (
+                  {/* Tool Calls (for non-agent messages) */}
+                  {!message.agentPlan && message.toolCalls && message.toolCalls.length > 0 && (
                     <ToolCallsList 
                       toolCalls={message.toolCalls}
                       activeToolCallId={activeToolCallId}
                     />
                   )}
                   
-                  {/* Inline File Operations */}
-                  {message.fileOperations && message.fileOperations.length > 0 && (
+                  {/* Inline File Operations (for non-agent messages) */}
+                  {!message.agentPlan && message.fileOperations && message.fileOperations.length > 0 && (
                     <FileOperationsInline 
                       operations={message.fileOperations} 
                       isStreaming={message.isStreaming}
