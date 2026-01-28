@@ -847,6 +847,7 @@ export function AIPanel() {
         let loopBuffer = '';
         let fullResponse = '';
         let currentActionId: string | null = null;
+        let streamingThoughtActionId: string | null = null;
         let hasToolCall = false;
         let hasFileOp = false;
         let hasFinalResponse = false;
@@ -871,39 +872,67 @@ export function AIPanel() {
                 const result = parseChunk(parserState, data.content);
                 parserState = result.state;
 
-                // Handle thought blocks
+                // Handle thought blocks - each thought gets its own action
                 if (result.newThought) {
-                  // Complete thought - create new action with this thought
-                  if (!currentActionId) {
-                    currentActionId = addAgentAction(messageId, {
+                  // Complete thought - finalize streaming thought if exists, or create new
+                  if (streamingThoughtActionId) {
+                    updateAgentActionThought(messageId, streamingThoughtActionId, result.newThought.content, false);
+                    completeAgentAction(messageId, streamingThoughtActionId);
+                    streamingThoughtActionId = null;
+                  } else {
+                    const thoughtActionId = addAgentAction(messageId, {
                       type: 'response',
                       thought: result.newThought.content,
                       thoughtStreaming: false,
                     });
-                  } else {
-                    updateAgentActionThought(messageId, currentActionId, result.newThought.content, false);
+                    completeAgentAction(messageId, thoughtActionId);
                   }
+                  currentActionId = null;
                 } else if (result.thoughtChunk) {
-                  // Streaming thought
-                  if (!currentActionId) {
-                    currentActionId = addAgentAction(messageId, {
+                  // Streaming thought - create or append to streaming thought action
+                  if (!streamingThoughtActionId) {
+                    streamingThoughtActionId = addAgentAction(messageId, {
                       type: 'response',
                       thought: result.thoughtChunk,
                       thoughtStreaming: true,
                     });
                   } else {
-                    appendAgentActionThought(messageId, currentActionId, result.thoughtChunk);
+                    appendAgentActionThought(messageId, streamingThoughtActionId, result.thoughtChunk);
                   }
                 }
 
-                // Handle final response blocks
+                // Handle final response blocks - response gets its own action
                 if (result.newResponse) {
                   hasFinalResponse = true;
-                  if (currentActionId) {
+                  // Finalize any streaming thought first
+                  if (streamingThoughtActionId) {
+                    completeAgentAction(messageId, streamingThoughtActionId);
+                    streamingThoughtActionId = null;
+                  }
+                  // Create response action
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'response',
+                      response: result.newResponse.content,
+                      responseStreaming: false,
+                    });
+                  } else {
                     updateAgentActionResponse(messageId, currentActionId, result.newResponse.content, false);
                   }
                 } else if (result.responseChunk) {
-                  if (currentActionId) {
+                  // Finalize any streaming thought first
+                  if (streamingThoughtActionId) {
+                    completeAgentAction(messageId, streamingThoughtActionId);
+                    streamingThoughtActionId = null;
+                  }
+                  // Append to response action
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'response',
+                      response: result.responseChunk,
+                      responseStreaming: true,
+                    });
+                  } else {
                     appendAgentActionResponse(messageId, currentActionId, result.responseChunk);
                   }
                 }
@@ -994,16 +1023,22 @@ export function AIPanel() {
                   hasFileOp = true;
                   const fileName = op.path.split('/').pop() || op.path;
                   
-                  if (!currentActionId) {
-                    currentActionId = addAgentAction(messageId, {
-                      type: 'file_operation',
-                    });
+                  // Finalize any streaming thought before creating file action
+                  if (streamingThoughtActionId) {
+                    completeAgentAction(messageId, streamingThoughtActionId);
+                    streamingThoughtActionId = null;
                   }
+                  
+                  // Create a NEW action for each file operation
+                  // This ensures each file gets its own created badge
+                  const fileActionId = addAgentAction(messageId, {
+                    type: 'file_operation',
+                  });
 
                   if (op.type === 'create') {
                     createFile(op.path, op.content || '');
                     addActivityLog('created', op.path);
-                    updateAgentActionFileOp(messageId, currentActionId, {
+                    updateAgentActionFileOp(messageId, fileActionId, {
                       id: `fo-${Date.now()}`,
                       action: 'created',
                       filePath: op.path,
@@ -1013,7 +1048,7 @@ export function AIPanel() {
                   } else if (op.type === 'update') {
                     updateFile(op.path, op.content || '');
                     addActivityLog('updated', op.path);
-                    updateAgentActionFileOp(messageId, currentActionId, {
+                    updateAgentActionFileOp(messageId, fileActionId, {
                       id: `fo-${Date.now()}`,
                       action: 'updated',
                       filePath: op.path,
@@ -1024,14 +1059,14 @@ export function AIPanel() {
                     if (existingFile) {
                       deleteFile(op.path);
                       addActivityLog('deleted', op.path);
-                      updateAgentActionFileOp(messageId, currentActionId, {
+                      updateAgentActionFileOp(messageId, fileActionId, {
                         id: `fo-${Date.now()}`,
                         action: 'deleted',
                         filePath: op.path,
                         fileName,
                       });
                     } else {
-                      updateAgentActionFileOp(messageId, currentActionId, {
+                      updateAgentActionFileOp(messageId, fileActionId, {
                         id: `fo-${Date.now()}`,
                         action: 'skipped',
                         filePath: op.path,
@@ -1040,6 +1075,12 @@ export function AIPanel() {
                       });
                     }
                   }
+                  
+                  // Mark this file action as complete
+                  completeAgentAction(messageId, fileActionId);
+                  
+                  // Clear currentActionId so thoughts can create new actions
+                  currentActionId = null;
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.message);
@@ -1047,15 +1088,32 @@ export function AIPanel() {
                 // Flush parser
                 const flushResult = flushParser(parserState);
                 
-                if (flushResult.incompleteThought) {
-                  if (currentActionId) {
-                    updateAgentActionThought(messageId, currentActionId, flushResult.incompleteThought.content, false);
+                // Finalize any streaming thought
+                if (streamingThoughtActionId) {
+                  if (flushResult.incompleteThought) {
+                    updateAgentActionThought(messageId, streamingThoughtActionId, flushResult.incompleteThought.content, false);
                   }
+                  completeAgentAction(messageId, streamingThoughtActionId);
+                  streamingThoughtActionId = null;
+                } else if (flushResult.incompleteThought) {
+                  // Create a new thought action for incomplete thought
+                  const thoughtActionId = addAgentAction(messageId, {
+                    type: 'response',
+                    thought: flushResult.incompleteThought.content,
+                    thoughtStreaming: false,
+                  });
+                  completeAgentAction(messageId, thoughtActionId);
                 }
                 
                 if (flushResult.incompleteResponse) {
                   hasFinalResponse = true;
-                  if (currentActionId) {
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'response',
+                      response: flushResult.incompleteResponse.content,
+                      responseStreaming: false,
+                    });
+                  } else {
                     updateAgentActionResponse(messageId, currentActionId, flushResult.incompleteResponse.content, false);
                   }
                 }
@@ -1065,15 +1123,14 @@ export function AIPanel() {
                   const fileName = op.path.split('/').pop() || op.path;
                   hasFileOp = true;
                   
-                  if (!currentActionId) {
-                    currentActionId = addAgentAction(messageId, {
-                      type: 'file_operation',
-                    });
-                  }
+                  // Create a new action for the file operation
+                  const fileActionId = addAgentAction(messageId, {
+                    type: 'file_operation',
+                  });
                   
                   if (op.type === 'create') {
                     createFile(op.path, op.content || '');
-                    updateAgentActionFileOp(messageId, currentActionId, {
+                    updateAgentActionFileOp(messageId, fileActionId, {
                       id: `fo-${Date.now()}`,
                       action: 'created',
                       filePath: op.path,
@@ -1082,13 +1139,15 @@ export function AIPanel() {
                     openFile(op.path, fileName);
                   } else if (op.type === 'update') {
                     updateFile(op.path, op.content || '');
-                    updateAgentActionFileOp(messageId, currentActionId, {
+                    updateAgentActionFileOp(messageId, fileActionId, {
                       id: `fo-${Date.now()}`,
                       action: 'updated',
                       filePath: op.path,
                       fileName,
                     });
                   }
+                  
+                  completeAgentAction(messageId, fileActionId);
                 }
               }
             } catch (e) {
