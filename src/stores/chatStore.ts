@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage, ThinkingState, FileOperation, ToolCallState, AgentPlanDisplay, PlanStepDisplay } from '@/types/chat';
+import type { ChatMessage, ThinkingState, FileOperation, ToolCallState, AgentPlanDisplay, PlanStepDisplay, AgentLoopState, AgentActionBlock } from '@/types/chat';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -47,6 +47,20 @@ interface ChatStore {
   setCompletionSummary: (messageId: string, summary: string, isStreaming?: boolean) => void;
   appendCompletionSummary: (messageId: string, chunk: string) => void;
   finalizeCompletionSummary: (messageId: string) => void;
+
+  // Agent Loop methods
+  initializeAgentLoop: (messageId: string) => void;
+  addAgentAction: (messageId: string, action: Omit<AgentActionBlock, 'id' | 'timestamp'>) => string;
+  updateAgentActionThought: (messageId: string, actionId: string, thought: string, isStreaming?: boolean) => void;
+  appendAgentActionThought: (messageId: string, actionId: string, chunk: string) => void;
+  updateAgentActionToolCall: (messageId: string, actionId: string, toolCall: Partial<ToolCallState>) => void;
+  updateAgentActionFileOp: (messageId: string, actionId: string, fileOp: FileOperation) => void;
+  updateAgentActionResponse: (messageId: string, actionId: string, response: string, isStreaming?: boolean) => void;
+  appendAgentActionResponse: (messageId: string, actionId: string, chunk: string) => void;
+  completeAgentAction: (messageId: string, actionId: string) => void;
+  incrementAgentIteration: (messageId: string) => void;
+  setAgentLoopComplete: (messageId: string, finalResponse?: string) => void;
+  appendAgentFinalResponse: (messageId: string, chunk: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -507,6 +521,251 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: state.messages.map((m) =>
         m.id === messageId
           ? { ...m, isCompletionStreaming: false }
+          : m
+      ),
+    }));
+  },
+
+  // Agent Loop methods
+  initializeAgentLoop: (messageId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              agentLoop: {
+                isActive: true,
+                currentIteration: 1,
+                maxIterations: 20,
+                actions: [],
+                isComplete: false,
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  addAgentAction: (messageId: string, action: Omit<AgentActionBlock, 'id' | 'timestamp'>) => {
+    const actionId = uuidv4();
+    const newAction: AgentActionBlock = {
+      ...action,
+      id: actionId,
+      timestamp: new Date(),
+    };
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: [...m.agentLoop.actions, newAction],
+              },
+            }
+          : m
+      ),
+    }));
+    return actionId;
+  },
+
+  updateAgentActionThought: (messageId: string, actionId: string, thought: string, isStreaming = true) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? { ...a, thought, thoughtStreaming: isStreaming }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  appendAgentActionThought: (messageId: string, actionId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? { ...a, thought: (a.thought || '') + chunk, thoughtStreaming: true }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  updateAgentActionToolCall: (messageId: string, actionId: string, toolCall: Partial<ToolCallState>) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? {
+                        ...a,
+                        toolCall: a.toolCall
+                          ? { ...a.toolCall, ...toolCall }
+                          : {
+                              id: uuidv4(),
+                              name: toolCall.name || '',
+                              arguments: toolCall.arguments || {},
+                              status: toolCall.status || 'pending',
+                              startedAt: new Date(),
+                              ...toolCall,
+                            },
+                      }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  updateAgentActionFileOp: (messageId: string, actionId: string, fileOp: FileOperation) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId ? { ...a, fileOperation: fileOp } : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  updateAgentActionResponse: (messageId: string, actionId: string, response: string, isStreaming = true) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? { ...a, response, responseStreaming: isStreaming }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  appendAgentActionResponse: (messageId: string, actionId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? { ...a, response: (a.response || '') + chunk, responseStreaming: true }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  completeAgentAction: (messageId: string, actionId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                actions: m.agentLoop.actions.map((a) =>
+                  a.id === actionId
+                    ? { ...a, isComplete: true, thoughtStreaming: false, responseStreaming: false }
+                    : a
+                ),
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  incrementAgentIteration: (messageId: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                currentIteration: m.agentLoop.currentIteration + 1,
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  setAgentLoopComplete: (messageId: string, finalResponse?: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                isComplete: true,
+                isActive: false,
+                finalResponse,
+                finalResponseStreaming: false,
+              },
+            }
+          : m
+      ),
+    }));
+  },
+
+  appendAgentFinalResponse: (messageId: string, chunk: string) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId && m.agentLoop
+          ? {
+              ...m,
+              agentLoop: {
+                ...m.agentLoop,
+                finalResponse: (m.agentLoop.finalResponse || '') + chunk,
+                finalResponseStreaming: true,
+              },
+            }
           : m
       ),
     }));

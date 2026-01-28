@@ -9,6 +9,16 @@ export interface ParsedToolCall {
   arguments: Record<string, unknown>;
 }
 
+export interface ParsedThought {
+  content: string;
+  isComplete: boolean;
+}
+
+export interface ParsedResponse {
+  content: string;
+  isComplete: boolean;
+}
+
 export interface ParserState {
   buffer: string;
   currentOperation: {
@@ -18,6 +28,12 @@ export interface ParserState {
   } | null;
   currentToolCall: {
     name: string;
+    content: string;
+  } | null;
+  currentThought: {
+    content: string;
+  } | null;
+  currentResponse: {
     content: string;
   } | null;
   completedOperations: ParsedFileOperation[];
@@ -35,30 +51,45 @@ const FILE_END_PATTERN = /<<<\s*FILE_END\s*>>>|```\s*$/;
 const TOOL_CALL_PATTERN = /<<<\s*TOOL_CALL\s*:\s*([^>]+?)>>>/i;
 const TOOL_END_PATTERN = /<<<\s*TOOL_END\s*>>>/i;
 
+// Thought and Response patterns for agent loop
+const THOUGHT_START_PATTERN = /<<<\s*THOUGHT\s*>>>/i;
+const THOUGHT_END_PATTERN = /<<<\s*THOUGHT_END\s*>>>/i;
+const RESPONSE_START_PATTERN = /<<<\s*RESPONSE\s*>>>/i;
+const RESPONSE_END_PATTERN = /<<<\s*RESPONSE_END\s*>>>/i;
+
 // Detect partial markers that might be forming
-const PARTIAL_MARKER_PATTERN = /<{1,3}$|<{1,3}F|<{1,3}FI|<{1,3}T|<{1,3}TO|<<<\s*FILE|<<<\s*FILE_|<<<\s*FILE_[A-Z]+|<<<\s*FILE_[A-Z]+\s*:|<<<\s*FILE_[A-Z]+\s*:\s*[^>]*$|<<<\s*TOOL|<<<\s*TOOL_|<<<\s*TOOL_CALL|<<<\s*TOOL_CALL\s*:|<<<\s*TOOL_CALL\s*:\s*[^>]*$/i;
+const PARTIAL_MARKER_PATTERN = /<{1,3}$|<{1,3}F|<{1,3}FI|<{1,3}T|<{1,3}TO|<{1,3}R|<{1,3}RE|<<<\s*FILE|<<<\s*FILE_|<<<\s*FILE_[A-Z]+|<<<\s*FILE_[A-Z]+\s*:|<<<\s*FILE_[A-Z]+\s*:\s*[^>]*$|<<<\s*TOOL|<<<\s*TOOL_|<<<\s*TOOL_CALL|<<<\s*TOOL_CALL\s*:|<<<\s*TOOL_CALL\s*:\s*[^>]*$|<<<\s*THOUGHT|<<<\s*THOUGHT_|<<<\s*RESPONSE|<<<\s*RESPONSE_/i;
 
 export function createParser(): ParserState {
   return {
     buffer: '',
     currentOperation: null,
     currentToolCall: null,
+    currentThought: null,
+    currentResponse: null,
     completedOperations: [],
     insideCodeBlock: false,
   };
 }
 
-export function parseChunk(
-  state: ParserState,
-  chunk: string
-): {
+export interface ParseChunkResult {
   state: ParserState;
   newOperations: ParsedFileOperation[];
   newToolCalls: ParsedToolCall[];
   displayText: string;
   currentFilePath: string | null;
   currentToolName: string | null;
-} {
+  // New: thought and response parsing
+  newThought: ParsedThought | null;
+  thoughtChunk: string | null;
+  newResponse: ParsedResponse | null;
+  responseChunk: string | null;
+}
+
+export function parseChunk(
+  state: ParserState,
+  chunk: string
+): ParseChunkResult {
   const newState: ParserState = {
     buffer: state.buffer + chunk,
     currentOperation: state.currentOperation
@@ -67,12 +98,22 @@ export function parseChunk(
     currentToolCall: state.currentToolCall
       ? { ...state.currentToolCall }
       : null,
+    currentThought: state.currentThought
+      ? { ...state.currentThought }
+      : null,
+    currentResponse: state.currentResponse
+      ? { ...state.currentResponse }
+      : null,
     completedOperations: [...state.completedOperations],
     insideCodeBlock: state.insideCodeBlock,
   };
   const newOperations: ParsedFileOperation[] = [];
   const newToolCalls: ParsedToolCall[] = [];
   let displayText = '';
+  let newThought: ParsedThought | null = null;
+  let thoughtChunk: string | null = null;
+  let newResponse: ParsedResponse | null = null;
+  let responseChunk: string | null = null;
 
   let iterations = 0;
   const maxIterations = 100;
@@ -81,9 +122,73 @@ export function parseChunk(
     iterations++;
     let matched = false;
 
+    // Check for THOUGHT start marker
+    const thoughtStartMatch = newState.buffer.match(THOUGHT_START_PATTERN);
+    if (thoughtStartMatch && !newState.currentOperation && !newState.currentToolCall && !newState.currentThought && !newState.currentResponse) {
+      const matchIndex = thoughtStartMatch.index ?? 0;
+      const textBefore = newState.buffer.slice(0, matchIndex);
+      displayText += filterPartialMarkers(textBefore);
+      
+      newState.currentThought = { content: '' };
+      newState.buffer = newState.buffer.slice(matchIndex + thoughtStartMatch[0].length);
+      matched = true;
+      continue;
+    }
+
+    // Check for THOUGHT end marker
+    if (newState.currentThought) {
+      const thoughtEndMatch = newState.buffer.match(THOUGHT_END_PATTERN);
+      if (thoughtEndMatch && thoughtEndMatch.index !== undefined) {
+        const contentEndIndex = thoughtEndMatch.index;
+        newState.currentThought.content += newState.buffer.slice(0, contentEndIndex);
+        
+        newThought = {
+          content: newState.currentThought.content.trim(),
+          isComplete: true,
+        };
+        
+        newState.buffer = newState.buffer.slice(contentEndIndex + thoughtEndMatch[0].length);
+        newState.currentThought = null;
+        matched = true;
+        continue;
+      }
+    }
+
+    // Check for RESPONSE start marker
+    const responseStartMatch = newState.buffer.match(RESPONSE_START_PATTERN);
+    if (responseStartMatch && !newState.currentOperation && !newState.currentToolCall && !newState.currentThought && !newState.currentResponse) {
+      const matchIndex = responseStartMatch.index ?? 0;
+      const textBefore = newState.buffer.slice(0, matchIndex);
+      displayText += filterPartialMarkers(textBefore);
+      
+      newState.currentResponse = { content: '' };
+      newState.buffer = newState.buffer.slice(matchIndex + responseStartMatch[0].length);
+      matched = true;
+      continue;
+    }
+
+    // Check for RESPONSE end marker
+    if (newState.currentResponse) {
+      const responseEndMatch = newState.buffer.match(RESPONSE_END_PATTERN);
+      if (responseEndMatch && responseEndMatch.index !== undefined) {
+        const contentEndIndex = responseEndMatch.index;
+        newState.currentResponse.content += newState.buffer.slice(0, contentEndIndex);
+        
+        newResponse = {
+          content: newState.currentResponse.content.trim(),
+          isComplete: true,
+        };
+        
+        newState.buffer = newState.buffer.slice(contentEndIndex + responseEndMatch[0].length);
+        newState.currentResponse = null;
+        matched = true;
+        continue;
+      }
+    }
+
     // Check for TOOL_CALL marker
     const toolCallMatch = newState.buffer.match(TOOL_CALL_PATTERN);
-    if (toolCallMatch && !newState.currentOperation && !newState.currentToolCall) {
+    if (toolCallMatch && !newState.currentOperation && !newState.currentToolCall && !newState.currentThought && !newState.currentResponse) {
       const matchIndex = toolCallMatch.index ?? 0;
       const toolName = (toolCallMatch[1] || '').trim();
       
@@ -244,6 +349,26 @@ export function parseChunk(
           newState.currentToolCall.content += newState.buffer.slice(0, safeLength);
           newState.buffer = newState.buffer.slice(safeLength);
         }
+      } else if (newState.currentThought) {
+        // Inside a thought - accumulate content and stream it
+        const bufferKeepLength = 20; // Keep enough to detect <<<THOUGHT_END>>>
+        const safeLength = Math.max(0, newState.buffer.length - bufferKeepLength);
+        if (safeLength > 0) {
+          const chunkToAdd = newState.buffer.slice(0, safeLength);
+          newState.currentThought.content += chunkToAdd;
+          thoughtChunk = chunkToAdd;
+          newState.buffer = newState.buffer.slice(safeLength);
+        }
+      } else if (newState.currentResponse) {
+        // Inside a response - accumulate content and stream it
+        const bufferKeepLength = 20; // Keep enough to detect <<<RESPONSE_END>>>
+        const safeLength = Math.max(0, newState.buffer.length - bufferKeepLength);
+        if (safeLength > 0) {
+          const chunkToAdd = newState.buffer.slice(0, safeLength);
+          newState.currentResponse.content += chunkToAdd;
+          responseChunk = chunkToAdd;
+          newState.buffer = newState.buffer.slice(safeLength);
+        }
       } else {
         // Not inside a file operation or tool call - output to display
         // Keep enough buffer to detect any marker pattern
@@ -273,14 +398,22 @@ export function parseChunk(
     displayText: cleanDisplayText(displayText),
     currentFilePath: newState.currentOperation?.path || null,
     currentToolName: newState.currentToolCall?.name || null,
+    newThought,
+    thoughtChunk,
+    newResponse,
+    responseChunk,
   };
 }
 
-export function flushParser(state: ParserState): {
+export interface FlushResult {
   displayText: string;
   incompleteOperation: ParsedFileOperation | null;
   incompleteToolCall: ParsedToolCall | null;
-} {
+  incompleteThought: ParsedThought | null;
+  incompleteResponse: ParsedResponse | null;
+}
+
+export function flushParser(state: ParserState): FlushResult {
   if (state.currentOperation) {
     return {
       displayText: '',
@@ -290,6 +423,8 @@ export function flushParser(state: ParserState): {
         content: cleanContent(state.currentOperation.content + state.buffer),
       },
       incompleteToolCall: null,
+      incompleteThought: null,
+      incompleteResponse: null,
     };
   }
 
@@ -305,6 +440,8 @@ export function flushParser(state: ParserState): {
           name: state.currentToolCall.name,
           arguments: args,
         },
+        incompleteThought: null,
+        incompleteResponse: null,
       };
     } catch {
       // If parsing fails, return null for the tool call
@@ -312,8 +449,36 @@ export function flushParser(state: ParserState): {
         displayText: '',
         incompleteOperation: null,
         incompleteToolCall: null,
+        incompleteThought: null,
+        incompleteResponse: null,
       };
     }
+  }
+
+  if (state.currentThought) {
+    return {
+      displayText: '',
+      incompleteOperation: null,
+      incompleteToolCall: null,
+      incompleteThought: {
+        content: (state.currentThought.content + state.buffer).trim(),
+        isComplete: false,
+      },
+      incompleteResponse: null,
+    };
+  }
+
+  if (state.currentResponse) {
+    return {
+      displayText: '',
+      incompleteOperation: null,
+      incompleteToolCall: null,
+      incompleteThought: null,
+      incompleteResponse: {
+        content: (state.currentResponse.content + state.buffer).trim(),
+        isComplete: false,
+      },
+    };
   }
 
   // Clean remaining buffer before displaying
@@ -322,6 +487,8 @@ export function flushParser(state: ParserState): {
     displayText: cleanDisplayText(cleanedBuffer),
     incompleteOperation: null,
     incompleteToolCall: null,
+    incompleteThought: null,
+    incompleteResponse: null,
   };
 }
 
@@ -358,9 +525,13 @@ function filterPartialMarkers(text: string): string {
   filtered = filtered.replace(/<<<\s*FILE_END\s*>>>/gi, '');
   filtered = filtered.replace(/<<<\s*TOOL_CALL\s*:\s*[^>]*>>>/gi, '');
   filtered = filtered.replace(/<<<\s*TOOL_END\s*>>>/gi, '');
+  filtered = filtered.replace(/<<<\s*THOUGHT\s*>>>/gi, '');
+  filtered = filtered.replace(/<<<\s*THOUGHT_END\s*>>>/gi, '');
+  filtered = filtered.replace(/<<<\s*RESPONSE\s*>>>/gi, '');
+  filtered = filtered.replace(/<<<\s*RESPONSE_END\s*>>>/gi, '');
   
   // Remove partial markers at the end
-  filtered = filtered.replace(/<{1,3}(?:\s*(?:FILE|TOOL))?(?:_[A-Z]*)?(?:\s*:)?(?:\s*[^>]*)?$/i, '');
+  filtered = filtered.replace(/<{1,3}(?:\s*(?:FILE|TOOL|THOUGHT|RESPONSE))?(?:_[A-Z]*)?(?:\s*:)?(?:\s*[^>]*)?$/i, '');
   
   return filtered;
 }
@@ -375,6 +546,12 @@ function cleanDisplayText(text: string): string {
   // Remove any remaining tool call markers
   cleaned = cleaned.replace(/<<<\s*TOOL_CALL\s*:\s*[^>]*>>>/gi, '');
   cleaned = cleaned.replace(/<<<\s*TOOL_END\s*>>>/gi, '');
+  
+  // Remove thought and response markers
+  cleaned = cleaned.replace(/<<<\s*THOUGHT\s*>>>/gi, '');
+  cleaned = cleaned.replace(/<<<\s*THOUGHT_END\s*>>>/gi, '');
+  cleaned = cleaned.replace(/<<<\s*RESPONSE\s*>>>/gi, '');
+  cleaned = cleaned.replace(/<<<\s*RESPONSE_END\s*>>>/gi, '');
   
   // Remove tool call JSON content that might have leaked
   cleaned = cleaned.replace(/\{"path"\s*:\s*"[^"]*"\}/gi, '');

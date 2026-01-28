@@ -47,6 +47,37 @@ export interface AgentPlanDisplay {
   rawContent?: string;
 }
 
+// Agent Loop Types - for multi-call tool-based agent
+export interface AgentThoughtBlock {
+  id: string;
+  thought: string;
+  isStreaming?: boolean;
+  timestamp: Date;
+}
+
+export interface AgentActionBlock {
+  id: string;
+  type: 'tool_call' | 'file_operation' | 'response';
+  thought?: string; // Short reasoning before action
+  thoughtStreaming?: boolean;
+  toolCall?: ToolCallState;
+  fileOperation?: FileOperation;
+  response?: string;
+  responseStreaming?: boolean;
+  isComplete?: boolean;
+  timestamp: Date;
+}
+
+export interface AgentLoopState {
+  isActive: boolean;
+  currentIteration: number;
+  maxIterations: number;
+  actions: AgentActionBlock[];
+  isComplete: boolean;
+  finalResponse?: string;
+  finalResponseStreaming?: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -61,6 +92,8 @@ export interface ChatMessage {
   agentPlan?: AgentPlanDisplay;
   completionSummary?: string;
   isCompletionStreaming?: boolean;
+  // Agent Loop - for multi-call tool execution
+  agentLoop?: AgentLoopState;
 }
 
 export interface ChatState {

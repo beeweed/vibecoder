@@ -47,6 +47,8 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { ToolCallsList } from './ToolCallIndicator';
 import { AgentPlanDisplayComponent, CompletionSummary } from './AgentPlanDisplay';
+import { AgentLoopDisplay } from './AgentLoopDisplay';
+import { buildAgentLoopPrompt } from '@/lib/systemPrompt';
 
 function FileOperationsInline({ 
   operations, 
@@ -288,6 +290,20 @@ export function AIPanel() {
   const setCompletionSummary = useChatStore((s) => s.setCompletionSummary);
   const appendCompletionSummary = useChatStore((s) => s.appendCompletionSummary);
   const finalizeCompletionSummary = useChatStore((s) => s.finalizeCompletionSummary);
+
+  // Agent Loop store methods
+  const initializeAgentLoop = useChatStore((s) => s.initializeAgentLoop);
+  const addAgentAction = useChatStore((s) => s.addAgentAction);
+  const updateAgentActionThought = useChatStore((s) => s.updateAgentActionThought);
+  const appendAgentActionThought = useChatStore((s) => s.appendAgentActionThought);
+  const updateAgentActionToolCall = useChatStore((s) => s.updateAgentActionToolCall);
+  const updateAgentActionFileOp = useChatStore((s) => s.updateAgentActionFileOp);
+  const updateAgentActionResponse = useChatStore((s) => s.updateAgentActionResponse);
+  const appendAgentActionResponse = useChatStore((s) => s.appendAgentActionResponse);
+  const completeAgentAction = useChatStore((s) => s.completeAgentAction);
+  const incrementAgentIteration = useChatStore((s) => s.incrementAgentIteration);
+  const setAgentLoopComplete = useChatStore((s) => s.setAgentLoopComplete);
+  const appendAgentFinalResponse = useChatStore((s) => s.appendAgentFinalResponse);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -770,190 +786,350 @@ export function AIPanel() {
       setThinking(false);
 
       // ==========================================
-      // PHASE 2: Planning (Streaming)
+      // PHASE 2: Agent Loop - Multi-call tool execution
       // ==========================================
-      setStatus('thinking');
+      setStatus('writing');
       
       const messageId = startAssistantMessage();
       currentAssistantMessageIdRef.current = messageId;
 
-      updatePlanRawContent(messageId, '');
+      // Initialize the agent loop
+      initializeAgentLoop(messageId);
 
-      const planResponse = await fetch('/api/agent/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage,
-          thinkingResult: fullReasoning,
-          model: selectedModel,
-          apiKey: activeApiKey,
-          provider,
-          fileContext,
-        }),
-        signal: abortController.signal,
-      });
+      // Conversation history for the agent loop
+      const conversationHistory: Array<{ role: string; content: string }> = [
+        { role: 'user', content: userMessage }
+      ];
 
-      if (!planResponse.ok) {
-        const error = await planResponse.json();
-        throw new Error(error.error || 'Failed to create plan');
-      }
+      const maxIterations = 20;
+      let iteration = 0;
+      let isComplete = false;
 
-      const planReader = planResponse.body?.getReader();
-      const planDecoder = new TextDecoder();
-
-      if (!planReader) {
-        throw new Error('No response body for planning');
-      }
-
-      let planBuffer = '';
-      let fullPlanContent = '';
-
-      while (true) {
-        const { done, value } = await planReader.read();
-        if (done) break;
-
-        planBuffer += planDecoder.decode(value, { stream: true });
-        const lines = planBuffer.split('\n');
-        planBuffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-
-          try {
-            const data = JSON.parse(trimmedLine.slice(6));
-
-            if (data.type === 'token' && data.content) {
-              fullPlanContent += data.content;
-              appendPlanRawContent(messageId, data.content);
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
-            }
-          } catch (e) {
-            if (e instanceof SyntaxError) continue;
-            throw e;
-          }
-        }
-      }
-
-      const parsedPlan = parsePlanFromContent(fullPlanContent);
-      if (!parsedPlan) {
-        throw new Error('Failed to parse execution plan from LLM response');
-      }
-
-      initializePlanSteps(messageId, parsedPlan.goal, parsedPlan.steps);
-
-      // ==========================================
-      // PHASE 3: Execute Each Step (LLM-in-the-loop)
-      // ==========================================
-      setStatus('writing');
-
-      const completedSteps: Array<{ title: string; description: string; result?: string; filesCreated?: string[]; filesUpdated?: string[] }> = [];
-
-      const currentMessage = useChatStore.getState().messages.find(m => m.id === messageId);
-      const planSteps = currentMessage?.agentPlan?.steps || [];
-
-      for (let i = 0; i < planSteps.length; i++) {
-        const step = planSteps[i];
+      while (!isComplete && iteration < maxIterations) {
+        iteration++;
         
-        startPlanStep(messageId, step.id);
+        // Get fresh file context for each iteration
+        const currentFiles = Object.values(useFileSystemStore.getState().nodes).filter((n) => n.type === 'file') as VirtualFile[];
+        const currentFileContext = buildFileTreeContext(
+          currentFiles.map((f) => ({ path: f.path, content: f.content }))
+        );
 
-        try {
-          const stepResult = await executeStepWithFileOps(
-            step.id,
-            messageId,
-            (chunk) => appendStepContent(messageId, step.id, chunk),
-            (action, path, reason) => addStepFileOperation(messageId, step.id, action, path, reason),
-            (name, args) => addStepToolCall(messageId, step.id, name, args),
-            (toolCallId, status, result) => updateStepToolCallStatus(messageId, step.id, toolCallId, status, result),
-            { title: step.title, description: step.description },
-            parsedPlan.goal,
-            i + 1,
-            planSteps.length,
-            completedSteps,
-            abortController.signal
-          );
+        // Call the agent loop API
+        const loopResponse = await fetch('/api/agent/loop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: conversationHistory,
+            model: selectedModel,
+            apiKey: activeApiKey,
+            provider,
+            temperature,
+            maxTokens,
+            systemInstruction,
+            fileContext: currentFileContext,
+          }),
+          signal: abortController.signal,
+        });
 
-          completePlanStep(messageId, step.id);
-          completedSteps.push({
-            title: step.title,
-            description: step.description,
-            result: "Completed successfully",
-            filesCreated: stepResult.filesCreated,
-            filesUpdated: stepResult.filesUpdated,
-          });
-
-        } catch (stepError) {
-          if ((stepError as Error).name === 'AbortError') {
-            throw stepError;
-          }
-          failPlanStep(messageId, step.id, (stepError as Error).message);
-          throw stepError;
+        if (!loopResponse.ok) {
+          const error = await loopResponse.json();
+          throw new Error(error.error || 'Failed to get agent response');
         }
-      }
 
-      // ==========================================
-      // PHASE 4: Completion Summary
-      // ==========================================
-      setStatus('completed');
+        const loopReader = loopResponse.body?.getReader();
+        const loopDecoder = new TextDecoder();
 
-      const updatedFiles = Object.values(nodes).filter((n) => n.type === 'file') as VirtualFile[];
-      const updatedFileContext = buildFileTreeContext(
-        updatedFiles.map((f) => ({ path: f.path, content: f.content }))
-      );
+        if (!loopReader) {
+          throw new Error('No response body');
+        }
 
-      const completeResponse = await fetch('/api/agent/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          goal: parsedPlan.goal,
-          completedSteps,
-          model: selectedModel,
-          apiKey: activeApiKey,
-          provider,
-          fileContext: updatedFileContext,
-        }),
-        signal: abortController.signal,
-      });
+        let parserState = createParser();
+        let loopBuffer = '';
+        let fullResponse = '';
+        let currentActionId: string | null = null;
+        let hasToolCall = false;
+        let hasFileOp = false;
+        let hasFinalResponse = false;
 
-      if (completeResponse.ok) {
-        const completeReader = completeResponse.body?.getReader();
-        const completeDecoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await loopReader.read();
+          if (done) break;
 
-        if (completeReader) {
-          let completeBuffer = '';
-          setCompletionSummary(messageId, '', true);
+          loopBuffer += loopDecoder.decode(value, { stream: true });
+          const lines = loopBuffer.split('\n');
+          loopBuffer = lines.pop() || '';
 
-          while (true) {
-            const { done, value } = await completeReader.read();
-            if (done) break;
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
 
-            completeBuffer += completeDecoder.decode(value, { stream: true });
-            const lines = completeBuffer.split('\n');
-            completeBuffer = lines.pop() || '';
+            try {
+              const data = JSON.parse(trimmedLine.slice(6));
 
-            for (const line of lines) {
-              const trimmedLine = line.trim();
-              if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+              if (data.type === 'token' && data.content) {
+                fullResponse += data.content;
+                const result = parseChunk(parserState, data.content);
+                parserState = result.state;
 
-              try {
-                const data = JSON.parse(trimmedLine.slice(6));
-                if (data.type === 'token' && data.content) {
-                  appendCompletionSummary(messageId, data.content);
+                // Handle thought blocks
+                if (result.newThought) {
+                  // Complete thought - create new action with this thought
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'response',
+                      thought: result.newThought.content,
+                      thoughtStreaming: false,
+                    });
+                  } else {
+                    updateAgentActionThought(messageId, currentActionId, result.newThought.content, false);
+                  }
+                } else if (result.thoughtChunk) {
+                  // Streaming thought
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'response',
+                      thought: result.thoughtChunk,
+                      thoughtStreaming: true,
+                    });
+                  } else {
+                    appendAgentActionThought(messageId, currentActionId, result.thoughtChunk);
+                  }
                 }
-              } catch {
-                // Ignore
+
+                // Handle final response blocks
+                if (result.newResponse) {
+                  hasFinalResponse = true;
+                  if (currentActionId) {
+                    updateAgentActionResponse(messageId, currentActionId, result.newResponse.content, false);
+                  }
+                } else if (result.responseChunk) {
+                  if (currentActionId) {
+                    appendAgentActionResponse(messageId, currentActionId, result.responseChunk);
+                  }
+                }
+
+                // Handle tool calls
+                for (const toolCall of result.newToolCalls) {
+                  hasToolCall = true;
+                  if (toolCall.name === 'read_file') {
+                    const path = (toolCall.arguments as { path?: string })?.path;
+                    if (path) {
+                      if (!currentActionId) {
+                        currentActionId = addAgentAction(messageId, {
+                          type: 'tool_call',
+                        });
+                      }
+                      
+                      // Update action type to tool_call
+                      const toolCallId = `tc-${Date.now()}`;
+                      updateAgentActionToolCall(messageId, currentActionId, {
+                        id: toolCallId,
+                        name: 'read_file',
+                        arguments: toolCall.arguments,
+                        status: 'executing',
+                        startedAt: new Date(),
+                      });
+                      setExecutingTool(true, toolCallId);
+                      setStatus('reading');
+
+                      // Execute the tool call
+                      const file = getFileByPath(path);
+                      if (!file) {
+                        updateAgentActionToolCall(messageId, currentActionId, {
+                          status: 'error',
+                          result: { success: false, error: `File not found: ${path}` },
+                          completedAt: new Date(),
+                        });
+                      } else {
+                        try {
+                          const readResponse = await fetch('/api/tools/read-file', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path, fileContent: file.content }),
+                          });
+                          const readResult = await readResponse.json();
+                          if (readResult.success) {
+                            updateAgentActionToolCall(messageId, currentActionId, {
+                              status: 'completed',
+                              result: { success: true, data: readResult.data },
+                              completedAt: new Date(),
+                            });
+                            // Add file content to conversation for next iteration
+                            conversationHistory.push({
+                              role: 'assistant',
+                              content: fullResponse,
+                            });
+                            conversationHistory.push({
+                              role: 'user',
+                              content: `File content of ${path}:\n\`\`\`\n${readResult.data.content}\n\`\`\``,
+                            });
+                          } else {
+                            updateAgentActionToolCall(messageId, currentActionId, {
+                              status: 'error',
+                              result: { success: false, error: readResult.error },
+                              completedAt: new Date(),
+                            });
+                          }
+                        } catch (e) {
+                          updateAgentActionToolCall(messageId, currentActionId, {
+                            status: 'error',
+                            result: { success: false, error: String(e) },
+                            completedAt: new Date(),
+                          });
+                        }
+                      }
+                      setExecutingTool(false, null);
+                      setStatus('writing');
+                    }
+                  }
+                }
+
+                // Handle file operations
+                if (result.currentFilePath) {
+                  setStatus('writing');
+                  setCurrentFile(result.currentFilePath);
+                }
+
+                for (const op of result.newOperations) {
+                  hasFileOp = true;
+                  const fileName = op.path.split('/').pop() || op.path;
+                  
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'file_operation',
+                    });
+                  }
+
+                  if (op.type === 'create') {
+                    createFile(op.path, op.content || '');
+                    addActivityLog('created', op.path);
+                    updateAgentActionFileOp(messageId, currentActionId, {
+                      id: `fo-${Date.now()}`,
+                      action: 'created',
+                      filePath: op.path,
+                      fileName,
+                    });
+                    openFile(op.path, fileName);
+                  } else if (op.type === 'update') {
+                    updateFile(op.path, op.content || '');
+                    addActivityLog('updated', op.path);
+                    updateAgentActionFileOp(messageId, currentActionId, {
+                      id: `fo-${Date.now()}`,
+                      action: 'updated',
+                      filePath: op.path,
+                      fileName,
+                    });
+                  } else if (op.type === 'delete') {
+                    const existingFile = getFileByPath(op.path);
+                    if (existingFile) {
+                      deleteFile(op.path);
+                      addActivityLog('deleted', op.path);
+                      updateAgentActionFileOp(messageId, currentActionId, {
+                        id: `fo-${Date.now()}`,
+                        action: 'deleted',
+                        filePath: op.path,
+                        fileName,
+                      });
+                    } else {
+                      updateAgentActionFileOp(messageId, currentActionId, {
+                        id: `fo-${Date.now()}`,
+                        action: 'skipped',
+                        filePath: op.path,
+                        fileName,
+                        reason: 'File not found',
+                      });
+                    }
+                  }
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.message);
+              } else if (data.type === 'done') {
+                // Flush parser
+                const flushResult = flushParser(parserState);
+                
+                if (flushResult.incompleteThought) {
+                  if (currentActionId) {
+                    updateAgentActionThought(messageId, currentActionId, flushResult.incompleteThought.content, false);
+                  }
+                }
+                
+                if (flushResult.incompleteResponse) {
+                  hasFinalResponse = true;
+                  if (currentActionId) {
+                    updateAgentActionResponse(messageId, currentActionId, flushResult.incompleteResponse.content, false);
+                  }
+                }
+
+                if (flushResult.incompleteOperation) {
+                  const op = flushResult.incompleteOperation;
+                  const fileName = op.path.split('/').pop() || op.path;
+                  hasFileOp = true;
+                  
+                  if (!currentActionId) {
+                    currentActionId = addAgentAction(messageId, {
+                      type: 'file_operation',
+                    });
+                  }
+                  
+                  if (op.type === 'create') {
+                    createFile(op.path, op.content || '');
+                    updateAgentActionFileOp(messageId, currentActionId, {
+                      id: `fo-${Date.now()}`,
+                      action: 'created',
+                      filePath: op.path,
+                      fileName,
+                    });
+                    openFile(op.path, fileName);
+                  } else if (op.type === 'update') {
+                    updateFile(op.path, op.content || '');
+                    updateAgentActionFileOp(messageId, currentActionId, {
+                      id: `fo-${Date.now()}`,
+                      action: 'updated',
+                      filePath: op.path,
+                      fileName,
+                    });
+                  }
+                }
               }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
             }
           }
-
-          finalizeCompletionSummary(messageId);
         }
+
+        // Complete the current action
+        if (currentActionId) {
+          completeAgentAction(messageId, currentActionId);
+        }
+
+        // Add assistant response to history for continuation
+        if (!hasToolCall) {
+          conversationHistory.push({
+            role: 'assistant',
+            content: fullResponse,
+          });
+        }
+
+        // Check if we have a final response (no tool calls or file ops needed)
+        if (hasFinalResponse && !hasToolCall && !hasFileOp) {
+          isComplete = true;
+        } else if (!hasToolCall && !hasFileOp && !hasFinalResponse) {
+          // No markers found - treat as complete
+          isComplete = true;
+        }
+
+        // Reset for next iteration
+        currentActionId = null;
+        incrementAgentIteration(messageId);
       }
 
+      // Mark agent loop as complete
+      setAgentLoopComplete(messageId);
       finalizeMessage(messageId);
       currentAssistantMessageIdRef.current = null;
       setCurrentFile(null);
+      setStatus('completed');
 
       setTimeout(() => {
         if (useAgentStore.getState().status === 'completed') {
@@ -1242,8 +1418,16 @@ export function AIPanel() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Agent Plan Display */}
-                  {message.agentPlan && (
+                  {/* Agent Loop Display - New multi-call approach */}
+                  {message.agentLoop && (
+                    <AgentLoopDisplay 
+                      agentLoop={message.agentLoop}
+                      activeToolCallId={activeToolCallId}
+                    />
+                  )}
+
+                  {/* Agent Plan Display - Legacy planning approach */}
+                  {message.agentPlan && !message.agentLoop && (
                     <AgentPlanDisplayComponent 
                       plan={message.agentPlan}
                       activeToolCallId={activeToolCallId}
@@ -1251,7 +1435,7 @@ export function AIPanel() {
                   )}
 
                   {/* Regular message content (if any) */}
-                  {message.content && (
+                  {message.content && !message.agentLoop && (
                     <div className="text-[#b0b0b2] text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>
                       <ReactMarkdown
                         components={{
@@ -1278,7 +1462,7 @@ export function AIPanel() {
                       >
                         {message.content}
                       </ReactMarkdown>
-                      {message.isStreaming && !message.agentPlan && (
+                      {message.isStreaming && !message.agentPlan && !message.agentLoop && (
                         <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#dcdcde] animate-pulse align-middle" />
                       )}
                     </div>
@@ -1293,7 +1477,7 @@ export function AIPanel() {
                   )}
                   
                   {/* Tool Calls (for non-agent messages) */}
-                  {!message.agentPlan && message.toolCalls && message.toolCalls.length > 0 && (
+                  {!message.agentPlan && !message.agentLoop && message.toolCalls && message.toolCalls.length > 0 && (
                     <ToolCallsList 
                       toolCalls={message.toolCalls}
                       activeToolCallId={activeToolCallId}
@@ -1301,7 +1485,7 @@ export function AIPanel() {
                   )}
                   
                   {/* Inline File Operations (for non-agent messages) */}
-                  {!message.agentPlan && message.fileOperations && message.fileOperations.length > 0 && (
+                  {!message.agentPlan && !message.agentLoop && message.fileOperations && message.fileOperations.length > 0 && (
                     <FileOperationsInline 
                       operations={message.fileOperations} 
                       isStreaming={message.isStreaming}
