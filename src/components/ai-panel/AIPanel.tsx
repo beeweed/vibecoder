@@ -20,6 +20,7 @@ import {
   Trash2,
   SkipForward,
   FileSearch,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +32,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import { useFileSystemStore } from '@/stores/fileSystemStore';
 import type { VirtualFile } from '@/types/files';
 import type { FileOperation, ToolCallState } from '@/types/chat';
+import type { AgentStreamEvent, ToolExecutionResult } from '@/types/agent';
 import { useEditorStore } from '@/stores/editorStore';
 import {
   createParser,
@@ -39,7 +41,7 @@ import {
   type ParsedFileOperation,
   type ParsedToolCall,
 } from '@/lib/parser';
-import { buildFileTreeContext } from '@/lib/systemPrompt';
+import { buildFileTreeContext, buildFileTreeSummary } from '@/lib/systemPrompt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -182,6 +184,7 @@ const statusConfig = {
   reading: { icon: FileSearch, label: 'Reading file...', color: 'text-blue-400' },
   writing: { icon: Pencil, label: 'Writing code...', color: 'text-[#dcdcde]' },
   refactoring: { icon: FileCode, label: 'Refactoring...', color: 'text-[#dcdcde]' },
+  executing_tool: { icon: RefreshCw, label: 'Executing tool...', color: 'text-amber-400' },
   completed: { icon: CheckCircle2, label: 'Completed', color: 'text-[#dcdcde]' },
   error: { icon: AlertCircle, label: 'Error', color: 'text-red-400' },
 };
@@ -476,6 +479,7 @@ export function AIPanel() {
       const fileContext = buildFileTreeContext(
         files.map((f) => ({ path: f.path, content: f.content }))
       );
+      const filesArray = files.map((f) => ({ path: f.path, content: f.content }));
 
       // ==========================================
       // PHASE 1: Thinking / Reasoning (Streaming)
@@ -547,19 +551,19 @@ export function AIPanel() {
       setThinking(false);
 
       // ==========================================
-      // PHASE 2: Coding / Execution
+      // PHASE 2: Agent Loop with Tool Execution
       // ==========================================
       setStatus('writing');
 
       const messageId = startAssistantMessage();
       currentAssistantMessageIdRef.current = messageId;
-      let parserState = createParser();
 
-      const response = await fetch('/api/chat', {
+      // Use new agent endpoint with agentic loop
+      const response = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...getMessagesForAPI().slice(0, -1), { role: 'user', content: userMessage }],
+          messages: [{ role: 'user', content: userMessage }],
           model: selectedModel,
           apiKey: activeApiKey,
           provider,
@@ -567,6 +571,7 @@ export function AIPanel() {
           maxTokens,
           systemInstruction,
           fileContext,
+          files: filesArray,
         }),
         signal: abortController.signal,
       });
@@ -598,45 +603,96 @@ export function AIPanel() {
           if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
 
           try {
-            const data = JSON.parse(trimmedLine.slice(6));
+            const data = JSON.parse(trimmedLine.slice(6)) as AgentStreamEvent;
 
-            if (data.type === 'token' && data.content) {
-              const result = parseChunk(parserState, data.content);
-              parserState = result.state;
+            switch (data.type) {
+              case 'token':
+                if (data.content) {
+                  appendToMessage(messageId, data.content);
+                }
+                break;
 
-              if (result.displayText) {
-                appendToMessage(messageId, result.displayText);
-              }
+              case 'loop_iteration':
+                if (data.iteration && data.iteration > 1) {
+                  setStatus('executing_tool');
+                  appendToMessage(messageId, `\n\n---\n*Agent iteration ${data.iteration}*\n\n`);
+                }
+                break;
 
-              if (result.currentFilePath) {
-                setStatus('writing');
-                setCurrentFile(result.currentFilePath);
-              }
+              case 'tool_call':
+                if (data.toolCall) {
+                  setStatus('executing_tool');
+                  const toolName = data.toolCall.toolName;
+                  const args = data.toolCall.arguments as { path?: string };
+                  addActivityLog('read', args.path || 'unknown');
+                  
+                  // Add tool call to the message
+                  const toolCallId = addToolCall(messageId, toolName, data.toolCall.arguments);
+                  updateToolCallStatus(messageId, toolCallId, 'executing');
+                }
+                break;
 
-              if (result.currentToolName) {
-                setStatus('reading');
-              }
+              case 'tool_result':
+                if (data.toolResult) {
+                  const result = data.toolResult as ToolExecutionResult;
+                  setStatus('writing');
+                  
+                  // Find the last tool call and update its status
+                  const message = useChatStore.getState().messages.find(m => m.id === messageId);
+                  if (message?.toolCalls && message.toolCalls.length > 0) {
+                    const lastToolCall = message.toolCalls[message.toolCalls.length - 1];
+                    updateToolCallStatus(
+                      messageId, 
+                      lastToolCall.id, 
+                      result.success ? 'completed' : 'error',
+                      {
+                        success: result.success,
+                        data: result.data,
+                        error: result.error,
+                      }
+                    );
+                  }
+                }
+                break;
 
-              processFileOperations(result.newOperations, messageId);
+              case 'file_operation':
+                if (data.fileOperation) {
+                  const op = data.fileOperation;
+                  const fileName = op.path.split('/').pop() || op.path;
+                  
+                  if (op.type === 'create') {
+                    createFile(op.path, op.content || '');
+                    addActivityLog('created', op.path);
+                    addFileOperation(messageId, 'created', op.path);
+                    openFile(op.path, fileName);
+                    setCurrentFile(op.path);
+                  } else if (op.type === 'update') {
+                    updateFile(op.path, op.content || '');
+                    addActivityLog('updated', op.path);
+                    addFileOperation(messageId, 'updated', op.path);
+                    setCurrentFile(op.path);
+                  } else if (op.type === 'delete') {
+                    const existingFile = getFileByPath(op.path);
+                    if (existingFile) {
+                      deleteFile(op.path);
+                      addActivityLog('deleted', op.path);
+                      addFileOperation(messageId, 'deleted', op.path);
+                      toast.success(`Deleted: ${fileName}`);
+                    } else {
+                      addActivityLog('skipped', op.path);
+                      addFileOperation(messageId, 'skipped', op.path, 'File not found');
+                      toast.warning(`Skipped: ${fileName} (file not found)`);
+                    }
+                  }
+                }
+                break;
 
-              // Process tool calls
-              if (result.newToolCalls.length > 0) {
-                await processToolCalls(result.newToolCalls, messageId);
-                setStatus('writing');
-              }
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
-            } else if (data.type === 'done') {
-              const flushResult = flushParser(parserState);
-              if (flushResult.displayText) {
-                appendToMessage(messageId, flushResult.displayText);
-              }
-              if (flushResult.incompleteOperation) {
-                processFileOperations([flushResult.incompleteOperation], messageId);
-              }
-              if (flushResult.incompleteToolCall) {
-                await processToolCalls([flushResult.incompleteToolCall], messageId);
-              }
+              case 'error':
+                throw new Error(data.message || 'Unknown error');
+
+              case 'done':
+                // Agent loop complete
+                break;
             }
           } catch (e) {
             if (e instanceof SyntaxError) continue;
@@ -696,17 +752,18 @@ export function AIPanel() {
       const fileContext = buildFileTreeContext(
         files.map((f) => ({ path: f.path, content: f.content }))
       );
+      const filesArray = files.map((f) => ({ path: f.path, content: f.content }));
 
       const messageId = startAssistantMessage();
       currentAssistantMessageIdRef.current = messageId;
-      let parserState = createParser();
 
       const continueMessages = [
         ...getMessagesForAPI(),
         { role: 'user', content: 'Continue from where you left off. Complete the remaining code and files.' }
       ];
 
-      const response = await fetch('/api/chat', {
+      // Use new agent endpoint
+      const response = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -718,6 +775,7 @@ export function AIPanel() {
           maxTokens,
           systemInstruction,
           fileContext,
+          files: filesArray,
         }),
         signal: abortController.signal,
       });
@@ -749,45 +807,93 @@ export function AIPanel() {
           if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
 
           try {
-            const data = JSON.parse(trimmedLine.slice(6));
+            const data = JSON.parse(trimmedLine.slice(6)) as AgentStreamEvent;
 
-            if (data.type === 'token' && data.content) {
-              const result = parseChunk(parserState, data.content);
-              parserState = result.state;
+            switch (data.type) {
+              case 'token':
+                if (data.content) {
+                  appendToMessage(messageId, data.content);
+                }
+                break;
 
-              if (result.displayText) {
-                appendToMessage(messageId, result.displayText);
-              }
+              case 'loop_iteration':
+                if (data.iteration && data.iteration > 1) {
+                  setStatus('executing_tool');
+                  appendToMessage(messageId, `\n\n---\n*Agent iteration ${data.iteration}*\n\n`);
+                }
+                break;
 
-              if (result.currentFilePath) {
-                setStatus('writing');
-                setCurrentFile(result.currentFilePath);
-              }
+              case 'tool_call':
+                if (data.toolCall) {
+                  setStatus('executing_tool');
+                  const toolName = data.toolCall.toolName;
+                  const args = data.toolCall.arguments as { path?: string };
+                  addActivityLog('read', args.path || 'unknown');
+                  
+                  const toolCallId = addToolCall(messageId, toolName, data.toolCall.arguments);
+                  updateToolCallStatus(messageId, toolCallId, 'executing');
+                }
+                break;
 
-              if (result.currentToolName) {
-                setStatus('reading');
-              }
+              case 'tool_result':
+                if (data.toolResult) {
+                  const result = data.toolResult as ToolExecutionResult;
+                  setStatus('writing');
+                  
+                  const message = useChatStore.getState().messages.find(m => m.id === messageId);
+                  if (message?.toolCalls && message.toolCalls.length > 0) {
+                    const lastToolCall = message.toolCalls[message.toolCalls.length - 1];
+                    updateToolCallStatus(
+                      messageId, 
+                      lastToolCall.id, 
+                      result.success ? 'completed' : 'error',
+                      {
+                        success: result.success,
+                        data: result.data,
+                        error: result.error,
+                      }
+                    );
+                  }
+                }
+                break;
 
-              processFileOperations(result.newOperations, messageId);
+              case 'file_operation':
+                if (data.fileOperation) {
+                  const op = data.fileOperation;
+                  const fileName = op.path.split('/').pop() || op.path;
+                  
+                  if (op.type === 'create') {
+                    createFile(op.path, op.content || '');
+                    addActivityLog('created', op.path);
+                    addFileOperation(messageId, 'created', op.path);
+                    openFile(op.path, fileName);
+                    setCurrentFile(op.path);
+                  } else if (op.type === 'update') {
+                    updateFile(op.path, op.content || '');
+                    addActivityLog('updated', op.path);
+                    addFileOperation(messageId, 'updated', op.path);
+                    setCurrentFile(op.path);
+                  } else if (op.type === 'delete') {
+                    const existingFile = getFileByPath(op.path);
+                    if (existingFile) {
+                      deleteFile(op.path);
+                      addActivityLog('deleted', op.path);
+                      addFileOperation(messageId, 'deleted', op.path);
+                      toast.success(`Deleted: ${fileName}`);
+                    } else {
+                      addActivityLog('skipped', op.path);
+                      addFileOperation(messageId, 'skipped', op.path, 'File not found');
+                      toast.warning(`Skipped: ${fileName} (file not found)`);
+                    }
+                  }
+                }
+                break;
 
-              // Process tool calls
-              if (result.newToolCalls.length > 0) {
-                await processToolCalls(result.newToolCalls, messageId);
-                setStatus('writing');
-              }
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
-            } else if (data.type === 'done') {
-              const flushResult = flushParser(parserState);
-              if (flushResult.displayText) {
-                appendToMessage(messageId, flushResult.displayText);
-              }
-              if (flushResult.incompleteOperation) {
-                processFileOperations([flushResult.incompleteOperation], messageId);
-              }
-              if (flushResult.incompleteToolCall) {
-                await processToolCalls([flushResult.incompleteToolCall], messageId);
-              }
+              case 'error':
+                throw new Error(data.message || 'Unknown error');
+
+              case 'done':
+                break;
             }
           } catch (e) {
             if (e instanceof SyntaxError) continue;
