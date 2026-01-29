@@ -155,7 +155,7 @@ export function EditorPanel() {
               fontSize: 14,
               fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
               lineNumbers: 'on',
-              minimap: { enabled: true },
+              minimap: { enabled: false },
               scrollBeyondLastLine: false,
               wordWrap: 'on',
               automaticLayout: true,
@@ -166,6 +166,15 @@ export function EditorPanel() {
               cursorSmoothCaretAnimation: 'on',
               renderLineHighlight: 'all',
               bracketPairColorization: { enabled: true },
+              overviewRulerBorder: false,
+              overviewRulerLanes: 0,
+              hideCursorInOverviewRuler: true,
+              scrollbar: {
+                vertical: 'auto',
+                horizontal: 'auto',
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 10,
+              },
             }}
           />
         )}
