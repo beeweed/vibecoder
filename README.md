@@ -11,7 +11,7 @@
 
 **Build applications with AI-powered code generation. Describe what you want, and VibeCoder writes the code.**
 
-[Demo](https://vibecoder.vercel.app) · [Report Bug](https://github.com/beeweed/vibecoder/issues) · [Request Feature](https://github.com/beeweed/vibecoder/issues)
+[Demo](https://vibecoder-ii-53fa8255.vercel.app/) · [Report Bug](https://github.com/beeweed/vibecoder/issues) · [Request Feature](https://github.com/beeweed/vibecoder/issues)
 
 </div>
 
